@@ -4,8 +4,8 @@ Tags: newsletter, newsletter form, newsletter subscribers, newsletter widget, wo
 Requires at least: 6.4
 Tested up to: 6.6
 Requires PHP: 7.2
-Version: 3.5.7
-Stable tag: 3.5.7
+Version: 3.5.8
+Stable tag: 3.5.8
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Donate link: https://noptin.com/products/?utm_source=wp-repo&utm_medium=donate&utm_campaign=readme
@@ -136,6 +136,11 @@ Yeah. Your newsletter subscription forms will take your theme's default styling.
 15. Viewing a list of all subscribers.
 
 == Changelog ==
+
+= 3.5.8 =
+* Add: Ability to use merge tags as values for conditional logic rules.
+* Fix: GDPR consent not required for legacy newsletter subscription forms.
+* Fix: WPBakery shortcodes not processed in new post notification newsletters.
 
 = 3.5.7 =
 * Change: Use ajax to register new subscribers whenever the REST API is not working.

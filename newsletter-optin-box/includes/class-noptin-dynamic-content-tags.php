@@ -607,12 +607,15 @@ abstract class Noptin_Dynamic_Content_Tags {
 		}
 
 		// Trying retrieving from posted email address.
-		if ( ! empty( noptin()->forms->listener->submitted['email'] ) ) {
-			return sanitize_email( noptin()->forms->listener->submitted['email'] );
-		}
+		$listener = \Hizzle\Noptin\Forms\Main::$listener;
+		if ( $listener ) {
+			if ( ! empty( $listener->submitted['email'] ) ) {
+				return sanitize_email( $listener->submitted['email'] );
+			}
 
-		if ( ! empty( noptin()->forms->listener->submitted['noptin_fields']['email'] ) ) {
-			return sanitize_email( noptin()->forms->listener->submitted['noptin_fields']['email'] );
+			if ( ! empty( $listener->submitted['noptin_fields']['email'] ) ) {
+				return sanitize_email( $listener->submitted['noptin_fields']['email'] );
+			}
 		}
 
 		// then , try logged-in user.
@@ -622,5 +625,80 @@ abstract class Noptin_Dynamic_Content_Tags {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Checks if conditional logic if met.
+	 *
+	 * @since 1.2.8
+	 * @param array $conditional_logic The conditional logic.
+	 * @param string[] $skip_tags The tags to skip.
+	 * @return bool|array
+	 */
+	public function check_conditional_logic( $conditional_logic, $skip_tags = array() ) {
+
+		// Retrieve the conditional logic.
+		$action  = $conditional_logic['action']; // allow or prevent.
+		$type    = $conditional_logic['type']; // all or any.
+		$skipped = array();
+
+		// Loop through each rule.
+		foreach ( $conditional_logic['rules'] as $rule ) {
+			// Get current value.
+			$full_value    = empty( $rule['full'] ) ? '[[' . $rule['type'] . ']]' : $rule['full'];
+			$current_value = $this->get_conditional_logic_value( $full_value, $skip_tags );
+			$compare_value = $this->get_conditional_logic_value( noptin_clean( $rule['value'] ), $skip_tags );
+
+			if ( false === $current_value || false === $compare_value ) {
+				$rule['full']  = false === $current_value ? $full_value : $current_value;
+				$rule['value'] = false === $compare_value ? $rule['value'] : $compare_value;
+				$skipped[]     = $rule;
+				continue;
+			}
+
+			// If the rule is met.
+			if ( noptin_is_conditional_logic_met( $current_value, $compare_value, $rule['condition'] ) ) {
+
+				// If we're using the "any" condition, we can stop here.
+				if ( 'any' === $type ) {
+					return 'allow' === $action;
+				}
+			} elseif ( 'all' === $type ) {
+				return 'allow' !== $action;
+			}
+		}
+
+		if ( ! empty( $skipped ) ) {
+			return $skipped;
+		}
+
+		$matched = 'all' === $type;
+
+		return 'allow' === $action ? $matched : ! $matched;
+	}
+
+	/**
+	 * Returns conditional logic value.
+	 *
+	 * @since 1.2.8
+	 * @param string|array $value The conditional logic.
+	 * @param string[] $skip_tags The tags to skip.
+	 * @return mixed|array
+	 */
+	private function get_conditional_logic_value( $value, $skip_tags = array() ) {
+
+		if ( is_string( $value ) && strpos( $value, '[[' ) !== false ) {
+
+			// Check if $current_value contains any of the strings in $skip_tags
+			foreach ( $skip_tags as $skip_tag ) {
+				if ( strpos( $value, $skip_tag ) !== false ) {
+					return false; // Skip to the next rule
+				}
+			}
+
+			$value = $this->replace_in_text_field( $value );
+		}
+
+		return $value;
 	}
 }
