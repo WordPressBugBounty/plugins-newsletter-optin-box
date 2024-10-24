@@ -781,6 +781,11 @@ function noptin_has_enabled_double_optin() {
  */
 function send_new_noptin_subscriber_double_optin_email( $id ) {
 
+	// Don't send double opt-in emails for imported subscribers.
+	if ( did_action( 'noptin_subscribers_before_import_item' ) && doing_action( 'noptin_subscriber_created' ) ) {
+		return false;
+	}
+
 	// Abort if double opt-in is disabled.
 	$double_optin = noptin_has_enabled_double_optin() && ! use_custom_noptin_double_optin_email();
 	if ( empty( $double_optin ) && doing_action( 'noptin_subscriber_created' ) ) {
@@ -790,7 +795,7 @@ function send_new_noptin_subscriber_double_optin_email( $id ) {
 	$subscriber = noptin_get_subscriber( $id );
 
 	// Abort if the subscriber is missing or confirmed.
-	if ( ! $subscriber->exists() || $subscriber->get_confirmed() || 'pending' !== $subscriber->get_status() ) {
+	if ( ! $subscriber->exists() || $subscriber->get_confirmed() ) {
 		return false;
 	}
 
@@ -1249,6 +1254,10 @@ function get_noptin_custom_fields( $public_only = false ) {
 			} else {
 				$prepared_field[ $key ] = noptin_clean( $value );
 			}
+		}
+
+		if ( 'first_name' === $field['merge_tag'] || 'last_name' === $field['merge_tag'] ) {
+			$prepared_field['predefined'] = false;
 		}
 
 		$fields[] = $prepared_field;
