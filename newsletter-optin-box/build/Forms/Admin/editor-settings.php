@@ -6,6 +6,19 @@
 
 defined( 'ABSPATH' ) || exit;
 
+$confirmation_messages = array();
+
+foreach ( get_default_noptin_form_messages() as $message_id => $message_details ) {
+	$confirmation_messages[ "{$message_id}Message" ] = array(
+		'type'        => 'text',
+		'el'          => 'input',
+		'label'       => $message_details['label'],
+		'description' => $message_details['description'],
+		'placeholder' => $message_details['default'],
+		'conditions'  => $message_details['conditions'] ?? array(),
+	);
+}
+
 $editor_settings = array(
 	'settings'     => array(
 		'label'           => __( 'Settings', 'newsletter-optin-box' ),
@@ -16,6 +29,24 @@ $editor_settings = array(
 			'title'    => __( 'Basic Options', 'newsletter-optin-box' ),
 			'id'       => 'basicSettings',
 			'children' => array(
+
+				'is_unsubscribe' => array(
+					'type'  => 'checkbox', 
+					'el'    => 'input',
+					'label' => __( 'This is an unsubscribe form.', 'newsletter-optin-box' ),
+				),
+
+				'update_existing' => array(
+					'type'  => 'checkbox',
+					'el'    => 'input',
+					'label' => __( 'Update existing subscribers if they match the submitted email address.', 'newsletter-optin-box' ),
+					'conditions'  => array(
+						array(
+							'key'   => 'is_unsubscribe',
+							'value' => false,
+						),
+					),
+				),
 
 				'inject'          => array(
 					'el'         => 'select',
@@ -45,26 +76,13 @@ $editor_settings = array(
 					),
 				),
 
-				// Success message after subscription.
-				'successMessage'  => array(
-					'type'       => 'textarea',
-					'el'         => 'textarea',
-					'label'      => __( 'Success message', 'newsletter-optin-box' ),
-					'conditions' => array(
-						array(
-							'key'   => 'subscribeAction',
-							'value' => 'message',
-						),
-					),
-				),
-
 				// Where should we redirect the user after subscription?
 				'redirectUrl'     => array(
-					'type'       => 'text',
-					'el'         => 'input',
-					'label'      => __( 'Redirect url', 'newsletter-optin-box' ),
-					'placeholde' => 'http://example.com/success',
-					'conditions' => array(
+					'type'        => 'text',
+					'el'          => 'input',
+					'label'       => __( 'Redirect url', 'newsletter-optin-box' ),
+					'placeholder' => 'http://example.com/success',
+					'conditions'  => array(
 						array(
 							'key'   => 'subscribeAction',
 							'value' => 'redirect',
@@ -73,6 +91,14 @@ $editor_settings = array(
 				),
 
 			),
+		),
+
+		// Messages.
+		'messages'        => array(
+			'el'       => 'panel',
+			'title'    => __( 'Messages', 'newsletter-optin-box' ),
+			'id'       => 'messagesSettings',
+			'children' => $confirmation_messages,
 		),
 
 		// Trigger Options.
@@ -470,6 +496,17 @@ $editor_settings = array(
 					'label' => __( 'Hide opt-in fields', 'newsletter-optin-box' ),
 				),
 
+				'hideEmail' => array(
+					'type'  => 'switch',
+					'el'    => 'input',
+					'label' => __( 'Hide email field if the email address is already known', 'newsletter-optin-box' ),
+					'conditions' => array(
+						array(
+							'key'   => 'hideFields',
+							'value' => false,
+						),
+					),
+				),
 			),
 		),
 

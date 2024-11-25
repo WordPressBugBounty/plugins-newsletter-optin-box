@@ -169,7 +169,6 @@ class Noptin_Form_Legacy {
 			'inject'                => '0',
 			'buttonPosition'        => 'block',
 			'subscribeAction'       => 'message', // redirect.
-			'successMessage'        => get_noptin_option( 'success_message' ),
 			'redirectUrl'           => '',
 
 			// Form Design.
@@ -307,10 +306,6 @@ class Noptin_Form_Legacy {
 			'tags'                  => '',
 
 		);
-
-		if ( empty( $defaults['successMessage'] ) ) {
-			$defaults['successMessage'] = esc_html__( 'Thanks for subscribing to the newsletter', 'newsletter-optin-box' );
-		}
 
 		// Add filters for all known taxonomies.
 		foreach ( array_keys( noptin_get_post_types() ) as $post_type ) {
