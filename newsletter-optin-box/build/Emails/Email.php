@@ -509,6 +509,9 @@ class Email {
 					'author'       => $this->author,
 					'preview_text' => noptin_parse_email_content_tags( $this->get( 'preview_text' ), true ),
 					'footer_text'  => noptin_parse_email_content_tags( $this->get( 'footer_text' ), true ),
+					'reply_to'     => noptin_parse_email_subject_tags( $this->get( 'reply_to' ), true ),
+					'from_email'   => noptin_parse_email_subject_tags( $this->get( 'from_email' ), true ),
+					'from_name'    => noptin_parse_email_subject_tags( $this->get( 'from_name' ), true ),
 				)
 			);
 
@@ -677,7 +680,7 @@ class Email {
 
 		// Maybe parse recipient tags.
 		if ( false !== strpos( Main::$current_email_recipient['email'], '[[' ) ) {
-			Main::$current_email_recipient['email'] = noptin()->emails->tags->replace_in_text_field( Main::$current_email_recipient['email'] );
+			Main::$current_email_recipient['email'] = noptin_parse_email_subject_tags( Main::$current_email_recipient['email'] );
 			$GLOBALS['current_noptin_email']        = Main::$current_email_recipient['email'];
 		}
 
