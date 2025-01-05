@@ -130,6 +130,11 @@
 		line-height: 100%;
 	}
 
+	table.noptin-button-block__wrapper table {
+		border-collapse: separate;
+		border-spacing: 0;
+	}
+
 	/**
 	 * Collapse table borders to avoid space between cells.
 	 */
