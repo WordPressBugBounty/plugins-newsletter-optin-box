@@ -231,12 +231,16 @@ class Store {
 			$email     = call_user_func( array( $object, 'get_email' ) );
 			$raw_value = esc_url( get_avatar_url( $email, $args ) );
 		} else {
-			$raw_value = $noptin_current_objects[ $config['object_type'] ]->get( $field, $args );
+			$raw_value = $object->get( $field, $args );
 		}
 
 		// Convert bools to yes/no.
 		if ( is_bool( $raw_value ) ) {
-			$raw_value = $raw_value ? 'yes' : 'no';
+			if ( ! $raw_value ) {
+				$raw_value = isset( $field['options'] ) && isset( $field['options']['no'] ) ? 'no' : '';
+			} else {
+				$raw_value = 'yes';
+			}
 		}
 
 		// Convert \DateTime to string.
@@ -249,6 +253,6 @@ class Store {
 			return $raw_value;
 		}
 
-		return $noptin_current_objects[ $config['object_type'] ]->format( $raw_value, $args );
+		return $object->format( $raw_value, $args );
 	}
 }

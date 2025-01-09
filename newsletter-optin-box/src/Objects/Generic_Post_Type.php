@@ -66,6 +66,10 @@ class Generic_Post_Type extends Post_Type {
 		}
 
 		parent::__construct();
+
+		if ( $post_type && post_type_supports( $this->type, 'author' ) ) {
+			$this->provides[] = 'post_author';
+		}
 	}
 
 	/**
@@ -396,7 +400,7 @@ class Generic_Post_Type extends Post_Type {
 						/* translators: %s: Object type label. */
 						__( 'Enter a comma-separated list of %1$s %2$s.', 'newsletter-optin-box' ),
 						strtolower( $this->singular_label ),
-						strtolower( $label )
+						false === strpos( strtolower( $label ), strtolower( $this->singular_label ) . ' ' ) ? strtolower( $label ) : str_replace( strtolower( $this->singular_label ) . ' ', '', strtolower( $label ) )
 					),
 					'show_in_meta' => true,
 				),
@@ -622,6 +626,12 @@ class Generic_Post_Type extends Post_Type {
 
 						if ( $term ) {
 							$prepared[] = (int) $term->term_id;
+						} else {
+							$term = get_term_by( 'slug', sanitize_title( $term ), $taxonomy );
+
+							if ( $term ) {
+								$prepared[] = (int) $term->term_id;
+							}
 						}
 					}
 				}
@@ -630,7 +640,7 @@ class Generic_Post_Type extends Post_Type {
 					if ( 'category' === $taxonomy ) {
 						$post_info['post_category'] = $prepared;
 					} else {
-						$post_info['tax_input'][ $taxonomy ] = $prepared;
+						$post_info['tax_input'][ $taxonomy ] = array_unique( array_filter( $prepared ) );
 					}
 				}
 
@@ -664,8 +674,42 @@ class Generic_Post_Type extends Post_Type {
 			$post = wp_insert_post( $post_info, true );
 		}
 
+		if ( ! is_wp_error( $post ) ) {
+			if ( ! empty( $post_info['tax_input'] ) ) {
+				foreach ( $post_info['tax_input'] as $taxonomy => $tags ) {
+
+					$taxonomy_obj = get_taxonomy( $taxonomy );
+
+					if ( $taxonomy_obj ) {
+
+						if ( empty( $tags ) && ! empty( $tax_object->default_term ) ) {
+							$default_term_id = get_option( 'default_term_' . $taxonomy );
+							if ( ! empty( $default_term_id ) ) {
+								$tags = array( (int) $default_term_id );
+							}
+						}
+
+						if ( ! empty( $tags ) ) {
+							wp_set_post_terms( $post, $tags, $taxonomy );
+						}
+					}
+				}
+			}
+
+			if ( empty( $post_info['ID'] ) ) {
+				$this->after_create_post( get_post( $post ) );
+			}
+		}
+
 		return $post;
 	}
+
+	/**
+	 * Called after a post is created.
+	 *
+	 * @param \WP_Post $post
+	 */
+	public function after_create_post( $post ) {}
 
 	/**
 	 * Deletes a post.
