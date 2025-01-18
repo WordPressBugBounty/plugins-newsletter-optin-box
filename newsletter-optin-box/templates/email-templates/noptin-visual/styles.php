@@ -123,6 +123,10 @@
 		vertical-align: bottom;
 	}
 
+	table.noptin-image-block__wrapper div {
+		overflow: hidden;
+	}
+
 	table.noptin-button-block__wrapper {
 		border-collapse: separate;
 		width: 100%;
@@ -201,8 +205,11 @@
 	.wp-block-noptin-group {
 		margin-left: auto;
 		margin-right: auto;
-		margin-top: 20px;
 		margin-bottom: 20px;
+	}
+
+	.wp-block-noptin-group:first-child {
+		margin-top: 20px;
 	}
 
 	.noptin-block-group__inner {
