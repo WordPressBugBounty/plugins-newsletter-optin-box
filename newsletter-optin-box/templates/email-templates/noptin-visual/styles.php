@@ -110,23 +110,6 @@
 		padding-left: 25px;
 	}
 
-	table.noptin-image-block__wrapper {
-		border-spacing: 0;
-		border-collapse: collapse;
-	}
-
-	table.noptin-image-block__wrapper:not(.noptin-image-block__wrapper-is-aligned) {
-		width: 100%;
-	}
-
-	table.noptin-image-block__wrapper img {
-		vertical-align: bottom;
-	}
-
-	table.noptin-image-block__wrapper div {
-		overflow: hidden;
-	}
-
 	table.noptin-button-block__wrapper {
 		border-collapse: separate;
 		width: 100%;
@@ -137,6 +120,22 @@
 	table.noptin-button-block__wrapper table {
 		border-collapse: separate;
 		border-spacing: 0;
+	}
+
+	table.noptin-image-block__wrapper {
+		border-spacing: 0;
+	}
+
+	table.noptin-image-block__wrapper:not(.noptin-image-block__wrapper-is-aligned) {
+		width: 100%;
+	}
+
+	table.noptin-image-block__wrapper img {
+		vertical-align: bottom;
+	}
+
+	table.noptin-image-block__wrapper div.noptin-block__margin-wrapper {
+		overflow: hidden;
 	}
 
 	/**
@@ -153,11 +152,32 @@
 		margin-bottom: 16px;
 	}
 
+	p:first-child, 
+	h1:first-child,
+	h2:first-child,
+	h3:first-child,
+	h4:first-child, 
+	h5:first-child, 
+	h6:first-child,
+	.noptin-columns:first-child,
+	.noptin-image-block__wrapper:first-child .noptin-block__margin-wrapper {
+		margin-top: 10px;
+	}
+
+	.noptin-columns {
+		margin-bottom: 16px;
+	}
+
+	.noptin-column__inner > .noptin-image-block__wrapper:first-child .noptin-block__margin-wrapper {
+		margin-left: 0;
+		margin-right: 0;
+		margin-top: 0;
+	}
+
 	.noptin-records__wrapper,
 	.wp-block-noptin-separator {
 		margin-bottom: 16px;
 	}
-
 
 	h1, h2, h3, h4, h5, h6 {
 		font-weight: 700;
@@ -189,7 +209,7 @@
 	}
 
 	h6 {
-		font-size: 16px;
+		font-size: 1em;
 		line-height: 20px;
 	}
 
@@ -208,13 +228,12 @@
 		margin-bottom: 20px;
 	}
 
-	.wp-block-noptin-group:first-child {
-		margin-top: 20px;
+	.wp-block-noptin-group > table {
+		overflow: hidden;
 	}
 
-	.noptin-block-group__inner {
-		padding-top: 20px;
-		padding-bottom: 20px;
+	.wp-block-noptin-group:first-child {
+		margin-top: 20px;
 	}
 
 	.noptin-record {
@@ -241,12 +260,9 @@
 	}
 
 	.noptin-column__inner {
-		padding-left: 10px;
-		padding-right: 10px;
-		padding-top: 10px;
-		padding-bottom: 10px;
 		margin-left: 10px;
 		margin-right: 10px;
+		overflow: hidden;
 	}
 
 	@media only screen and (max-width: 575px) {
