@@ -456,7 +456,7 @@ class Automation_Rule extends \Hizzle\Store\Record {
 			}
 
 			// If there are options, make sure the value is one of them.
-			if ( ! empty( $args['options'] ) ) {
+			if ( ! empty( $args['options'] ) && is_array( $args['options'] ) ) {
 				$choices = array_keys( $args['options'] );
 
 				if ( is_array( $value ) ) {
@@ -565,9 +565,11 @@ class Automation_Rule extends \Hizzle\Store\Record {
 		$action = $this->get_action();
 		if ( ! empty( $action ) ) {
 			$action_settings = apply_filters( 'noptin_automation_rule_action_settings_' . $action->get_id(), $action->get_settings(), $this, $action );
+			$other_sections  = array();
 
 			// Map fields.
-			$map_fields = array();
+			$map_fields               = array();
+			$original_action_settings = $action_settings;
 
 			foreach ( $action_settings as $key => $data ) {
 				if ( isset( $data['description'] ) && isset( $data['label'] ) && $data['description'] === $data['label'] ) {
@@ -577,13 +579,17 @@ class Automation_Rule extends \Hizzle\Store\Record {
 				if ( ! empty( $data['map_field'] ) ) {
 					$map_fields[ $key ] = $data;
 					unset( $action_settings[ $key ] );
+				} elseif ( ! empty( $data['settings'] ) && empty( $data['el'] ) ) {
+					$data['prop'] = $data['prop'] ?? 'action_settings';
+					$other_sections[ $key ] = $data;
+					unset( $action_settings[ $key ] );
+					unset( $original_action_settings[ $key ] );
 				}
 			}
 
 			// If less than 3 map fields, include them in action settings instead of separate section
 			if ( count( $map_fields ) > 0 && count( $map_fields ) < 3 ) {
 				$action_settings = array_merge(
-					$action_settings,
 					array(
 						'map_field_tip' => array(
 							'content' => sprintf(
@@ -595,7 +601,7 @@ class Automation_Rule extends \Hizzle\Store\Record {
 							'raw'     => true,
 						),
 					),
-					$map_fields
+					$original_action_settings
 				);
 				$map_fields      = array();
 			}
@@ -635,6 +641,8 @@ class Automation_Rule extends \Hizzle\Store\Record {
 					),
 				);
 			}
+
+			$settings = array_merge( $settings, $other_sections );
 		}
 
 		$settings = apply_filters( 'noptin_automation_rule_settings', $settings, $this, $trigger, $action );
