@@ -884,11 +884,18 @@ abstract class Collection {
 				'skiponempty'                  => 'no',
 				'hide_parent_section_on_empty' => 'no',
 				'responsive'                   => 'yes',
+				'table'                        => 'no',
 				'merge_tag'                    => '',
 			),
 			$atts,
 			'noptin_' . $this->plural_type() . '_list'
 		);
+
+		$is_table = 'yes' === $atts['table'];
+
+		if ( $is_table ) {
+			$atts['columns'] = 1;
+		}
 
 		if ( ! empty( $atts['merge_tag'] ) ) {
 			$tag   = '[[' . $atts['merge_tag'] . ' number="' . $atts['number'] . '" return=ids]]';
@@ -929,11 +936,18 @@ abstract class Collection {
 			}
 
 			if ( 'yes' === $atts['hide_parent_section_on_empty'] ) {
+				if ( $is_table ) {
+					return '<tr><td><div data-remove="wp-block-noptin-group"></div></td></tr>';
+				}
+
 				return '<div data-remove="wp-block-noptin-group"></div>';
 			}
 
+			do_action( 'noptin_collection_list_empty', $this );
 			return '';
 		}
+
+		do_action( 'noptin_collection_list_not_empty', $this );
 
 		$post                 = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
 		$tags                 = new Tags( $this->type );
@@ -963,7 +977,7 @@ abstract class Collection {
 			}
 		}
 
-		$html = '<div class="' . esc_attr( $wrapper_class ) . '">';
+		$html = $is_table ? '' : '<div class="' . esc_attr( $wrapper_class ) . '">';
 
 		// Render each column.
 		$column_class = 'noptin-records__column noptin-' . sanitize_html_class( $this->plural_type() ) . '__column';
@@ -977,10 +991,12 @@ abstract class Collection {
 		}
 
 		foreach ( $cols as $column_items ) {
-			$html .= '<div class="' . esc_attr( $column_class ) . '" style="width: ' . esc_attr( $width ) . '%;">';
+			if ( ! $is_table ) {
+				$html .= '<div class="' . esc_attr( $column_class ) . '" style="width: ' . esc_attr( $width ) . '%;">';
 
-			if ( empty( $column_items ) ) {
-				$html .= '&nbsp;';
+				if ( empty( $column_items ) ) {
+					$html .= '&nbsp;';
+				}
 			}
 
 			// Render each item.
@@ -1007,10 +1023,14 @@ abstract class Collection {
 				$this->cleanup_item( $item );
 			}
 
-			$html .= '</div>';
+			if ( ! $is_table ) {
+				$html .= '</div>';
+			}
 		}
 
-		$html .= '</div>';
+		if ( ! $is_table ) {
+			$html .= '</div>';
+		}
 
 		// Restore post.
 		if ( 'post_type' === $this->object_type ) {

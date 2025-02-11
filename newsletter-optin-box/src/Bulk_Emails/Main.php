@@ -75,6 +75,7 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 		// Send newsletter emails.
 		add_action( 'noptin_newsletter_campaign_published', array( $this, 'send_newsletter_campaign' ) );
 		add_action( 'noptin_resume_email_campaign', array( $this, 'send_newsletter_campaign' ), 1000 );
+		add_action( 'noptin_cleanup_hourly_email_count', array( __CLASS__, 'cleanup_hourly_email_count' ) );
 
 		add_action( 'shutdown', array( $this, 'handle_unexpected_shutdown' ) );
 	}
@@ -315,8 +316,11 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 *
 	 * @return bool
 	 */
-	public function handle_unexpected_shutdown() {
-		$error = error_get_last();
+	public function handle_unexpected_shutdown( $error = null ) {
+		// Get the last error if none provided
+        if ( $error === null ) {
+            $error = error_get_last();
+        }
 
 		if ( ! empty( $this->current_campaign ) && ! empty( $error ) && in_array( $error['type'], array( E_ERROR, E_PARSE, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR ), true ) ) {
 			noptin_pause_email_campaign(
@@ -332,7 +336,7 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 *
 	 * @return string
 	 */
-	private function current_hour() {
+	public static function current_hour() {
 		return gmdate( 'YmdH' );
 	}
 
@@ -341,8 +345,8 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 *
 	 * @return int
 	 */
-	public function emails_sent_this_hour() {
-		return (int) get_transient( 'noptin_emails_sent_' . $this->current_hour() );
+	public static function emails_sent_this_hour() {
+		return (int) get_option( 'noptin_emails_sent_' . self::current_hour() );
 	}
 
 	/**
@@ -350,8 +354,20 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 *
 	 * @return void
 	 */
-	private function increase_emails_sent_this_hour() {
-		set_transient( 'noptin_emails_sent_' . $this->current_hour(), $this->emails_sent_this_hour() + 1, 2 * HOUR_IN_SECONDS );
+	private static function increase_emails_sent_this_hour() {
+		static $cleaned_options = array();
+		$option_name = 'noptin_emails_sent_' . self::current_hour();
+		$sent        = self::emails_sent_this_hour();
+		update_option( $option_name, $sent + 1, false );
+
+		// Cleanup the option once per hour.
+		if ( ! isset( $cleaned_options[ $option_name ] ) ) {
+			if ( ! next_scheduled_noptin_background_action( 'noptin_cleanup_hourly_email_count', $option_name ) ) {
+				schedule_noptin_background_action( time() + 2 * HOUR_IN_SECONDS, 'noptin_cleanup_hourly_email_count', $option_name );
+			}
+
+			$cleaned_options[ $option_name ] = true;
+		}
 	}
 
 	/**
@@ -359,8 +375,18 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 *
 	 * @return bool
 	 */
-	public function exceeded_hourly_limit() {
+	public static function exceeded_hourly_limit() {
 		$limited = noptin_max_emails_per_period();
-		return ! empty( $limited ) && $this->emails_sent_this_hour() >= (int) $limited;
+		return ! empty( $limited ) && self::emails_sent_this_hour() >= (int) $limited;
+	}
+
+	/**
+	 * Cleanup expired hour counters.
+	 *
+	 * @param string $option_name The option name to cleanup
+	 * @return void
+	 */
+	public static function cleanup_hourly_email_count( $option_name ) {
+		delete_option( $option_name );
 	}
 }
