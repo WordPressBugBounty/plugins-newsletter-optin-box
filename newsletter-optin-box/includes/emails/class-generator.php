@@ -367,6 +367,9 @@ class Noptin_Email_Generator {
 		// Remove unused classes and ids.
 		$content = $this->clean_html( $content );
 
+		// Clean <style> tags.
+		$content = $this->clean_style_tags( $content );
+
 		// Restore hrefs.
 		$content = $this->restore_hrefs( $content );
 
@@ -431,12 +434,13 @@ class Noptin_Email_Generator {
 			return $html;
 		}
 
-		/** @var \DOMNodeList $elements */
 		foreach ( $elements as $element ) {
+			/** @var \DOMElement $element */
 			// If element has data-remove attribute, remove closest parent element that has the same selector.
 			if ( $element->hasAttribute( 'data-remove' ) ) {
 				$selector = $element->getAttribute( 'data-remove' );
 				$parent   = $element->parentNode;
+				/** @var \DOMElement $parent */
 				while ( $parent && ! ( $parent->nodeName === $selector || ( $parent->hasAttribute( 'class' ) && strpos( $parent->getAttribute( 'class' ), $selector ) !== false ) || ( $parent->hasAttribute( 'id' ) && $parent->getAttribute( 'id' ) === $selector ) ) ) {
 					$parent = $parent->parentNode;
 				}
@@ -462,37 +466,59 @@ class Noptin_Email_Generator {
 				// If <p> tag only contains whitespace, remove it
 				if ( ! $has_content ) {
 					$element->parentNode->removeChild( $element );
+					continue;
 				}
 			} elseif ( $is_block_element && ! $element->hasChildNodes() ) {
 				// If <p> tag has no children, remove it
 				$element->parentNode->removeChild( $element );
+				continue;
 			}
 
-			// Remove tables with .noptin-button-block__wrapper that have a child a element with an empty or missing href attribute.
-			if ( 'table' === $element->nodeName && $element->hasAttribute( 'class' ) && false !== strpos( $element->getAttribute( 'class' ), 'noptin-button-block__wrapper' ) ) {
-				$anchors           = $element->getElementsByTagName( 'a' );
-				$missing_href      = ! $anchors->item( 0 )->hasAttribute( 'href' ) || empty( $anchors->item( 0 )->getAttribute( 'href' ) );
-				$missing_data_href = ! $anchors->item( 0 )->hasAttribute( 'data-href' ) || empty( $anchors->item( 0 )->getAttribute( 'data-href' ) );
-				$has_either        = ! $missing_href || ! $missing_data_href;
-				if ( 0 === $anchors->length || ! $has_either ) {
-					$element->parentNode->removeChild( $element );
-					continue;
+			// If you have issues with background colors on <td> or <table> tags,
+			// then it is possible that the fallback color hasn’t been added correctly in style or bgcolor
+			if ( 'td' === $element->nodeName || 'table' === $element->nodeName ) {
+				if ( $element->hasAttribute( 'style' ) ) {
+					$style = $element->getAttribute( 'style' );
+
+					if ( preg_match( '/background-color:([^;]+);/', $style, $matches ) && ! $element->hasAttribute( 'bgcolor' ) ) {
+						$bgcolor = $matches[1];
+
+						if ( ! empty( $bgcolor ) ) {
+							$element->setAttribute( 'bgcolor', trim( $bgcolor ) );
+						}
+					}
 				}
 			}
 
-			// If this is a table element with .noptin-image-block__wrapper class,
-			// Remove it if the inner img tag has no src attribute.
-			if ( 'table' === $element->nodeName && $element->hasAttribute( 'class' ) && false !== strpos( $element->getAttribute( 'class' ), 'noptin-image-block__wrapper' ) ) {
-				$images = $element->getElementsByTagName( 'img' );
-				if ( 0 === $images->length || ! $images->item( 0 )->hasAttribute( 'src' ) || empty( $images->item( 0 )->getAttribute( 'src' ) ) ) {
-					$element->parentNode->removeChild( $element );
-					continue;
+			if ( 'table' === $element->nodeName && $element->hasAttribute( 'class' ) ) {
+
+				// Remove tables with .noptin-button-block__wrapper that have a child a element with an empty or missing href attribute.
+				if ( false !== strpos( $element->getAttribute( 'class' ), 'noptin-button-block__wrapper' ) ) {
+					$anchors           = $element->getElementsByTagName( 'a' );
+					$missing_href      = ! $anchors->item( 0 )->hasAttribute( 'href' ) || empty( $anchors->item( 0 )->getAttribute( 'href' ) );
+					$missing_data_href = ! $anchors->item( 0 )->hasAttribute( 'data-href' ) || empty( $anchors->item( 0 )->getAttribute( 'data-href' ) );
+					$has_either        = ! $missing_href || ! $missing_data_href;
+					if ( 0 === $anchors->length || ! $has_either ) {
+						$element->parentNode->removeChild( $element );
+						continue;
+					}
+				}
+
+				// If this is a table element with .noptin-image-block__wrapper class,
+				// Remove it if the inner img tag has no src attribute.
+				if ( $element->hasAttribute( 'class' ) && false !== strpos( $element->getAttribute( 'class' ), 'noptin-image-block__wrapper' ) ) {
+					$images = $element->getElementsByTagName( 'img' );
+					if ( 0 === $images->length || ! $images->item( 0 )->hasAttribute( 'src' ) || empty( $images->item( 0 )->getAttribute( 'src' ) ) ) {
+						$element->parentNode->removeChild( $element );
+						continue;
+					}
 				}
 			}
 
 			// Move padding styles from button links to wrapper td
 			if ( 'a' === $element->nodeName && $element->hasAttribute( 'class' ) && false !== strpos( $element->getAttribute( 'class' ), 'noptin-button-link' ) ) {
 				$style = $element->getAttribute( 'style' );
+
 				if ( ! empty( $style ) ) {
 					$padding_styles = array();
 
@@ -520,6 +546,11 @@ class Noptin_Email_Generator {
 
 					// Backwards compatibility:- Remove word-break: break-word;
 					$style = str_replace( 'word-break: break-word;', '', $style );
+
+					// Backwards compatibility:- Remove background-color.
+					if ( preg_match( '/background-color:[^;]+;/', $style, $matches ) ) {
+						$style = str_replace( $matches[0], '', $style );
+					}
 
 					$element->setAttribute( 'style', $style );
 
@@ -568,6 +599,58 @@ class Noptin_Email_Generator {
 						$fragment->appendChild( $element->firstChild );
 					}
 					$element->parentNode->replaceChild( $fragment, $element );
+				}
+			}
+
+			// Fix image display on Outlook.
+			if ( 'img' === $element->nodeName && ! $element->hasAttribute( 'width' ) ) {
+
+				$width = '100%';
+
+				// Check if the image is inside a .noptin-column element
+				$parent = $element;
+				while ( $parent = $parent->parentNode ) {
+					/** @var \DOMElement $parent */
+					if ( $parent->nodeType === XML_ELEMENT_NODE && $parent->hasAttribute( 'class' ) ) {
+						$parent_classes = explode( ' ', $parent->getAttribute( 'class' ) );
+						if ( in_array( 'noptin-column', $parent_classes ) && $parent->hasAttribute( 'style' ) ) {
+							if ( preg_match( '/width:([^;]+);/', $parent->getAttribute( 'style' ), $matches ) ) {
+								$width = $matches[1];
+							}
+							break;
+						}
+					}
+
+					// Stop if we reach the body or html element
+					if ( in_array( $parent->nodeName, array( 'body', 'html' ) ) ) {
+						break;
+					}
+				}
+
+				// If width is a percentage, calculate the pixel value based on 600px
+				if ( strpos( $width, '%' ) !== false ) {
+					$percentage = (float) $width;
+					$width_px   = round( ($percentage / 100) * 600 );
+					$width      = $width_px . 'px';
+				}
+
+				// Set the width attribute on the image
+				$element->setAttribute( 'width', trim( str_replace( 'px', '', $width ) ) );
+			}
+
+			// Fix section widths on Apple mail.
+			if ( 'table' === $element->nodeName && $element->hasAttribute( 'width' ) && $element->hasAttribute( 'style' ) ) {
+				$style = $element->getAttribute( 'style' );
+				if ( preg_match( '/width:([^;]+);/', $style, $matches ) ) {
+					$style = str_replace( $matches[0], '', $style );
+
+					// Remove max-width from style
+					if ( preg_match( '/max-width:([^;]+);/', $style, $max_width_matches ) ) {
+						$style = str_replace( $max_width_matches[0], '', $style );
+					}
+
+					$style .= 'width: 100%; max-width: ' . $matches[1] . ';';
+					$element->setAttribute( 'style', $style );
 				}
 			}
 
@@ -624,11 +707,17 @@ class Noptin_Email_Generator {
 		}
 
 		foreach ( $elements as $element ) {
+			/** @var \DOMElement $element */
 			$element->setAttribute( 'data-href', $element->getAttribute( 'href' ) );
 			$element->removeAttribute( 'href' );
 		}
 
 		return $doc->saveHTML();
+	}
+
+	private function clean_style_tags( $html ) {
+		$html = str_replace( '#noptin-email-content .main-content-wrapper .noptin-button-link,', '', $html );
+		return $html;
 	}
 
 	private function restore_hrefs( $html ) {

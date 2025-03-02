@@ -17,8 +17,8 @@ defined( 'ABSPATH' ) || exit;
 class Main {
 
 	/**
-     * @var Type[] The email types.
-     */
+	 * @var Type[] The email types.
+	 */
 	private static $types = array();
 
 	/**
@@ -48,6 +48,7 @@ class Main {
 		add_action( 'wp_after_insert_post', array( __CLASS__, 'on_save_campaign' ), 100, 4 );
 		add_action( 'before_delete_post', array( __CLASS__, 'on_delete_campaign' ) );
 		add_filter( 'rest_pre_insert_noptin-campaign', array( __CLASS__, 'filter_campaign_rest_request' ), 10, 2 );
+		add_action( 'noptin_pre_load_actions_page', __NAMESPACE__ . '\Actions::init', 0 );
 
 		// Add shortcode to display past newsletters.
 		add_shortcode( 'past_noptin_newsletters', array( __CLASS__, 'past_newsletters' ) );
@@ -57,6 +58,9 @@ class Main {
 
 		// Templates.
 		Templates::init();
+
+		// Revenue.
+		Revenue::init();
 
 		if ( is_admin() ) {
 			Admin\Main::init();
@@ -70,9 +74,9 @@ class Main {
 
 		// Campaign type.
 		register_rest_field(
-            'noptin-campaign',
-            'noptin_campaign_type',
-            array(
+			'noptin-campaign',
+			'noptin_campaign_type',
+			array(
 				'get_callback' => function ( $request ) {
 
 					// Abort if no id.
@@ -102,8 +106,8 @@ class Main {
 					),
 					'additionalProperties' => true,
 				),
-            )
-        );
+			)
+		);
 
 		// Automation rule.
 		register_rest_field(
@@ -425,7 +429,7 @@ class Main {
 				'plural_label'        => __( 'Templates', 'newsletter-optin-box' ),
 				'new_campaign_label'  => __( 'New Email Template', 'newsletter-optin-box' ),
 				'click_to_add_first'  => __( 'Click the button below to set-up your first email template', 'newsletter-optin-box' ),
-				'upsell'              => noptin_has_active_license_key() ? false : __( 'Create your own reusable email templates.', 'newsletter-optin-box' ),
+				'upsell'              => noptin_has_alk() ? false : __( 'Create your own reusable email templates.', 'newsletter-optin-box' ),
 				'supports_recipients' => false,
 				'supports_menu_order' => true,
 				'icon'                => 'admin-page',
@@ -604,27 +608,11 @@ class Main {
 	 * @param array $recipient The email recipient.
 	 */
 	public static function init_current_email_recipient( $recipient, $campaign = null ) {
-		if ( ! empty( $recipient['email'] ) ) {
-			if ( is_email( $recipient['email'] ) ) {
-				$GLOBALS['current_noptin_email'] = $recipient['email'];
-			}
-		} elseif ( ! empty( $recipient['sid'] ) ) {
-			$subscriber = noptin_get_subscriber( $recipient['sid'] );
-
-			if ( $subscriber->exists() ) {
-				$GLOBALS['current_noptin_email'] = $subscriber->get_email();
-				$recipient['email']              = $subscriber->get_email();
-			}
-		} elseif ( ! empty( $recipient['uid'] ) ) {
-			$user = get_userdata( $recipient['uid'] );
-
-			if ( $user && $user->exists() ) {
-				$GLOBALS['current_noptin_email'] = $user->user_email;
-				$recipient['email']              = $user->user_email;
-			}
+		if ( ! empty( $recipient['email'] ) && is_email( $recipient['email'] ) ) {
+			$GLOBALS['current_noptin_email'] = $recipient['email'];
 		}
 
-		self::$current_email_recipient = $recipient;
+		self::$current_email_recipient = array_filter( $recipient );
 
 		do_action( 'noptin_init_current_email_recipient', $campaign );
 	}
@@ -711,7 +699,7 @@ class Main {
 	public static function filter_last_send_date( $date ) {
 
 		if ( ( Preview::$simulation || ! did_action( 'noptin_prepare_email_preview' ) ) && ! empty( self::$current_email ) ) {
-			$last_date = get_post_meta( self::$current_email->id, '_noptin_last_send', true );
+			$last_date = self::$current_email->get_last_send();
 
 			if ( ! empty( $last_date ) ) {
 				return $last_date;
@@ -828,9 +816,9 @@ class Main {
 						);
 						$title = $email->name;
 
-						if ( empty( $title ) || 'title' !== $atts['show'] ) {
-							$title = $email->get( 'subject' );
-						}
+					if ( empty( $title ) || 'title' !== $atts['show'] ) {
+						$title = $email->get( 'subject' );
+					}
 					?>
 
 					<li class="noptin-past-newsletters__list-item">
@@ -868,8 +856,8 @@ class Main {
 		// If meta is being updated, filter out Elementor fields
 		if ( isset( $params['meta'] ) && is_array( $params['meta'] ) ) {
 			$filtered_meta = array_filter(
-				$params['meta'], 
-				function( $key ) {
+				$params['meta'],
+				function ( $key ) {
 					// Filter out protected meta keys.
 					return strpos( $key, '_' ) !== 0;
 				},

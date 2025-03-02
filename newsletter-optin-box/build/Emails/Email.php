@@ -376,6 +376,15 @@ class Email {
 	}
 
 	/**
+	 * Returns the last send timestamp in GMT.
+	 *
+	 * @return int
+	 */
+	public function get_last_send() {
+		return (int) get_post_meta( $this->id, '_noptin_last_send', true );
+	}
+
+	/**
 	 * Returns the sub type for this email.
 	 *
 	 * @return string
@@ -553,8 +562,8 @@ class Email {
 				}
 			}
 
-			if ( ! empty( $GLOBALS['noptin_email_' . $this->id . '_extra_conditional_logic'] ) ) {
-				$args['extra_conditional_logic'] = $GLOBALS['noptin_email_' . $this->id . '_extra_conditional_logic'];
+			if ( ! empty( $GLOBALS[ 'noptin_email_' . $this->id . '_extra_conditional_logic' ] ) ) {
+				$args['extra_conditional_logic'] = $GLOBALS[ 'noptin_email_' . $this->id . '_extra_conditional_logic' ];
 			} else {
 				unset( $args['extra_conditional_logic'] );
 			}
@@ -814,7 +823,7 @@ class Email {
 		$attachments = $this->get( 'attachments' );
 		$attachments = ! is_array( $attachments ) ? array() : array_filter( $attachments );
 
-		if ( ! noptin_has_active_license_key() || empty( $attachments ) ) {
+		if ( ! noptin_has_alk() || empty( $attachments ) ) {
 			return array();
 		}
 
@@ -972,7 +981,7 @@ class Email {
 		$email_types = array_keys( get_noptin_email_types() );
 		$email_type  = in_array( $email_type, $email_types, true ) ? $email_type : get_default_noptin_email_type();
 
-		if ( 'visual' === $email_type && ! noptin_has_active_license_key() ) {
+		if ( 'visual' === $email_type && ! noptin_has_alk() ) {
 			$email_type = 'normal';
 		}
 
