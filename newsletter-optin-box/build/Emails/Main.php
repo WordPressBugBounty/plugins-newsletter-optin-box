@@ -62,6 +62,10 @@ class Main {
 		// Revenue.
 		Revenue::init();
 
+		// Activity logs.
+		Logs\Main::init();
+
+		// Admin.
 		if ( is_admin() ) {
 			Admin\Main::init();
 		}
@@ -536,6 +540,9 @@ class Main {
 		if ( ! $email->exists() || 'auto-draft' === $post->post_status ) {
 			return;
 		}
+
+		// Delete the last error.
+		delete_post_meta( $post_id, '_bulk_email_last_error' );
 
 		// Fire saved hooks.
 		self::fire_email_action_hook( 'saved', $email );
