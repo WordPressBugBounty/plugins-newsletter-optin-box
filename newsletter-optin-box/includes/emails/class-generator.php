@@ -355,9 +355,6 @@ class Noptin_Email_Generator {
 		// Remove double http://.
 		$content = $this->fix_links_with_double_http( $content );
 
-		// Make links trackable.
-		$content = $this->make_links_trackable( $content );
-
 		// Backup hrefs.
 		$content = $this->backup_hrefs( $content );
 
@@ -372,6 +369,9 @@ class Noptin_Email_Generator {
 
 		// Restore hrefs.
 		$content = $this->restore_hrefs( $content );
+
+		// Make links trackable.
+		$content = $this->make_links_trackable( $content );
 
 		// Filters a post processed email.
 		return apply_filters( 'noptin_post_process_email_content', $content, $this );
@@ -495,6 +495,12 @@ class Noptin_Email_Generator {
 				// Remove tables with .noptin-button-block__wrapper that have a child a element with an empty or missing href attribute.
 				if ( false !== strpos( $element->getAttribute( 'class' ), 'noptin-button-block__wrapper' ) ) {
 					$anchors           = $element->getElementsByTagName( 'a' );
+
+					if ( empty( $anchors->length ) ) {
+						$element->parentNode->removeChild( $element );
+						continue;
+					}
+
 					$missing_href      = ! $anchors->item( 0 )->hasAttribute( 'href' ) || empty( $anchors->item( 0 )->getAttribute( 'href' ) );
 					$missing_data_href = ! $anchors->item( 0 )->hasAttribute( 'data-href' ) || empty( $anchors->item( 0 )->getAttribute( 'data-href' ) );
 					$has_either        = ! $missing_href || ! $missing_data_href;
@@ -561,6 +567,7 @@ class Noptin_Email_Generator {
 							$parent = $parent->parentNode;
 						}
 
+						/** @var \DOMElement $parent */
 						if ( $parent && $parent->hasAttribute( 'class' ) && false !== strpos( $parent->getAttribute( 'class' ), 'noptin-button-link__wrapper' ) ) {
 							$td_style = $parent->getAttribute( 'style' );
 							$td_style = rtrim( $td_style, ';' );
@@ -604,7 +611,6 @@ class Noptin_Email_Generator {
 
 			// Fix image display on Outlook.
 			if ( 'img' === $element->nodeName && ! $element->hasAttribute( 'width' ) ) {
-
 				$width = '100%';
 
 				// Check if the image is inside a .noptin-column element
@@ -708,7 +714,19 @@ class Noptin_Email_Generator {
 
 		foreach ( $elements as $element ) {
 			/** @var \DOMElement $element */
-			$element->setAttribute( 'data-href', $element->getAttribute( 'href' ) );
+			$href = $element->getAttribute( 'href' );
+
+			// Check if href begins with a question mark and fix it
+			if ( ! empty( $href ) && '?' === substr( $href, 0, 1 ) ) {
+				// Get the current site URL to prepend
+				$site_url = get_site_url();
+
+				// Append the query string to the site URL
+				$href = trailingslashit( $site_url ) . $href;
+				$element->setAttribute( 'href', $href );
+			}
+
+			$element->setAttribute( 'data-href', $href );
 			$element->removeAttribute( 'href' );
 		}
 

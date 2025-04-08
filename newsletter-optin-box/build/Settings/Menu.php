@@ -94,50 +94,35 @@ class Menu {
 	 */
 	public static function enqueue_scripts( $hook ) {
 
-		// Abort if not on the email campaigns page.
+		// Abort if not on the settings page.
 		if ( self::$hook_suffix !== $hook ) {
 			return;
 		}
 
-		$config = include plugin_dir_path( __FILE__ ) . 'assets/js/settings.asset.php';
-
 		wp_enqueue_media();
 
-		wp_enqueue_script(
-			'noptin-settings',
-			plugins_url( 'assets/js/settings.js', __FILE__ ),
-			$config['dependencies'],
-			$config['version'],
-			true
-		);
+		wp_enqueue_script( 'hizzlewp-settings' );
 
 		// Localize the script.
 		wp_localize_script(
-			'noptin-settings',
-			'noptinSettings',
+			'hizzlewp-settings',
+			'hizzleWPSettings',
 			array(
 				'data' => array(
-					'settings' => self::prepare_settings(),
-					'saved'    => array_merge(
+					'settings'    => self::prepare_settings(),
+					'saved'       => array_merge(
 						get_noptin_options(),
 						array(
 							'custom_fields' => array_values( get_noptin_custom_fields() ),
 						)
 					),
-					'brand'    => noptin()->white_label->get_details(),
+					'brand'       => noptin()->white_label->get_details(),
+					'option_name' => 'noptin_options',
 				),
 			)
 		);
 
-		wp_set_script_translations( 'noptin-settings', 'newsletter-optin-box', noptin()->plugin_path . 'languages' );
-
-		// Load the css.
-		wp_enqueue_style(
-			'noptin-settings',
-			plugins_url( 'assets/css/style-settings.css', __FILE__ ),
-			array( 'wp-components' ),
-			$config['version']
-		);
+		wp_set_script_translations( 'hizzlewp-settings', 'newsletter-optin-box', noptin()->plugin_path . 'languages' );
 	}
 
 	/**
@@ -389,35 +374,6 @@ class Menu {
 						'label'       => __( 'Emails Per Hour', 'newsletter-optin-box' ),
 						'placeholder' => __( 'Unlimited', 'newsletter-optin-box' ),
 						'tooltip'     => __( 'The maximum number of emails to send per hour. Leave empty to send as many as possible.', 'newsletter-optin-box' ),
-					),
-
-					'bounce_webhook_url' => array(
-						'el'          => 'input',
-						'type'        => 'text',
-						'section'     => 'emails',
-						'readonly'    => true,
-						'label'       => __( 'Bounce Handler', 'newsletter-optin-box' ),
-						'default'     => noptin()->api()->bounce_handler->service_url( '{{YOUR_SERVICE}}' ),
-						'placeholder' => noptin()->api()->bounce_handler->service_url( '{{YOUR_SERVICE}}' ),
-						'description' => sprintf(
-							// translators: %s is the list of supported services.
-							__( 'Supported services:- %s', 'newsletter-optin-box' ),
-							implode(
-								', ',
-								array_map(
-									function ( $args, $service ) {
-										return sprintf(
-											'<a href="%s" target="_blank">%s</a>',
-											esc_url( $args['url'] ),
-											esc_html( $service )
-										);
-									},
-									noptin()->api()->bounce_handler->get_supported_services(),
-									array_keys( noptin()->api()->bounce_handler->get_supported_services() )
-								)
-							)
-						),
-						'disabled'    => true,
 					),
 
 					'delete_campaigns'   => array(
