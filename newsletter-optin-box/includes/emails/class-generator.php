@@ -408,6 +408,9 @@ class Noptin_Email_Generator {
 
 	private function clean_html( $html ) {
 
+		// Remove script tags.
+		$html = preg_replace( '/<(script|svg|iframe|meta|object|embed|applet|link)[^>]*?>.*?<\/\1>/is', '', $html );
+
 		// Check if DOMDocument is available.
 		if ( ! class_exists( 'DOMDocument' ) || empty( $html ) ) {
 			return $html;
@@ -436,6 +439,45 @@ class Noptin_Email_Generator {
 
 		foreach ( $elements as $element ) {
 			/** @var \DOMElement $element */
+
+			// Escape attributes.
+			foreach ( $element->attributes ?? array() as $attribute ) {
+				$attr_name  = strtolower( $attribute->name );
+            	$attr_value = $attribute->value;
+
+				if ( empty( $attr_value ) ) {
+					continue;
+				}
+
+				// Sanitize style attribute.
+				if ( 'style' === $attr_name ) {
+					add_filter( 'safecss_filter_attr_allow_css', __CLASS__ . '::allow_rgb_in_css', 10, 2 );
+					$safe_style = safecss_filter_attr( $attr_value );
+					remove_filter( 'safecss_filter_attr_allow_css', __CLASS__ . '::allow_rgb_in_css', 10 );
+
+					if ( empty( $safe_style ) ) {
+						$element->removeAttribute( 'style' );
+					} else {
+						$element->setAttribute( 'style', $safe_style );
+					}
+					continue;
+				}
+
+				// Remove event handlers like onclick, onerror, etc.
+				if ( 0 === strpos( $attr_name, 'on' ) ) {
+					$element->removeAttribute( $attribute->name );
+					continue;
+				}
+
+				// Sanitize href and src attributes: allow only http, https, mailto, tel
+				if ( in_array( $attr_name, array( 'href', 'src' ), true ) ) {
+					$element->setAttribute( $attribute->name, esc_url( $attr_value ) );
+					continue;
+				}
+
+				$attribute->value = esc_attr( $attr_value );
+			}
+
 			// If element has data-remove attribute, remove closest parent element that has the same selector.
 			if ( $element->hasAttribute( 'data-remove' ) ) {
 				$selector = $element->getAttribute( 'data-remove' );
@@ -726,7 +768,7 @@ class Noptin_Email_Generator {
 				$element->setAttribute( 'href', $href );
 			}
 
-			$element->setAttribute( 'data-href', $href );
+			$element->setAttribute( 'data-href', wp_kses_bad_protocol( $href, wp_allowed_protocols() ) );
 			$element->removeAttribute( 'href' );
 		}
 
@@ -1021,5 +1063,24 @@ class Noptin_Email_Generator {
 		}
 
 		return preg_replace( $pattern, "$1\n", $content );
+	}
+
+	/**
+     * At the moment rgb() is not allowed to use in the style attribute. `style="color:rgb(0,0,0);"` gets
+     * sanitized if you use wp_kses. We hook into safecss_filter_attr_allow_css to allow for rgb. The code
+     * follows the precedent WordPress sets for the usage of var(), calc() etc. in safecss_filter_attr()
+    */
+	public static function allow_rgb_in_css( $allowed, $css_string ) {
+		if ( $allowed ) {
+			return (bool) $allowed;
+		}
+
+		$css_string = preg_replace(
+            '/\b(?:rgb|rgba)(\((?:[^()]|(?1))*\))/',
+           '',
+            $css_string
+		);
+
+		return ! preg_match( '%[\\\(&=}]|/\*%', $css_string );
 	}
 }
