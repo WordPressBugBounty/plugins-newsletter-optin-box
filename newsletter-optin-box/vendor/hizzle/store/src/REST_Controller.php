@@ -109,7 +109,7 @@ class REST_Controller extends \WP_REST_Controller {
 					'args'                => array_merge(
 						$this->get_collection_params(),
 						array(
-							'bulk_update'    => array(
+							'bulk_update' => array(
 								'type'        => array( 'object' ),
 								'description' => 'The edits to be made to the records.',
 								'required'    => true,
@@ -280,9 +280,12 @@ class REST_Controller extends \WP_REST_Controller {
 		}
 
 		// Method to retrieve the data schema.
-		$tabs = array_filter( $this->get_record_tabs(), function( $tab ) {
-			return ! empty( $tab['callback'] );
-		} );
+		$tabs = array_filter(
+			$this->get_record_tabs(),
+			function ( $tab ) {
+				return ! empty( $tab['callback'] );
+			}
+		);
 
 		if ( ! empty( $tabs ) ) {
 			$keys = implode( '|', array_keys( $tabs ) );
@@ -1161,6 +1164,15 @@ class REST_Controller extends \WP_REST_Controller {
 	public function get_item_schema() {
 		$collection = $this->fetch_collection();
 		$schema     = $collection ? $collection->get_rest_schema() : array();
+
+		if ( isset( $schema['properties'] ) ) {
+			$schema['properties']['hizzlewp_actions'] = array(
+				'description' => 'HizzleWP Actions',
+				'type'        => 'array',
+				'context'     => array( 'view' ),
+			);
+		}
+
 		return $this->add_additional_fields_schema( $schema );
 	}
 

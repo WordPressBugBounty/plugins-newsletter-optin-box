@@ -25,13 +25,14 @@ class Main {
 		add_filter( 'noptin_subscriber_should_fire_has_changes_hook', __CLASS__ . '::should_fire_has_changes_hook', 10, 2 );
 		add_filter( 'hizzle_rest_noptin_subscribers_record_tabs', __CLASS__ . '::add_collection_subscriber_tabs' );
 		add_action( 'noptin_pre_load_actions_page', __NAMESPACE__ . '\Actions::init' );
+		add_action( 'noptin_subscribers_before_prepare_query', __CLASS__ . '::hide_blocked_subscribers' );
 
 		if ( is_admin() ) {
 			add_action( 'admin_menu', array( __CLASS__, 'subscribers_menu' ), 33 );
+			add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
 
 			if ( defined( 'NOPTIN_IS_TESTING' ) && NOPTIN_IS_TESTING ) {
-				add_action( 'admin_menu', array( __CLASS__, 'new_subscribers_menu' ), 33 );
-				add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
+				add_action( 'admin_menu', array( __CLASS__, 'old_subscribers_menu' ), 33 );
 			}
 		}
 
@@ -158,14 +159,14 @@ class Main {
 	/**
 	 * New subscribers menu.
 	 */
-	public static function new_subscribers_menu() {
+	public static function subscribers_menu() {
 
 		self::$hook_suffix = add_submenu_page(
 			'noptin',
 			esc_html__( 'Email Subscribers', 'newsletter-optin-box' ),
-			esc_html__( 'Subscribers', 'newsletter-optin-box' ) . ' <span class="menu-counter">Beta</span>',
+			esc_html__( 'Subscribers', 'newsletter-optin-box' ),
 			get_noptin_capability(),
-			'noptin-subscribers__new',
+			'noptin-subscribers',
 			'\Hizzle\WordPress\ScriptManager::render_collection'
 		);
 
@@ -179,14 +180,14 @@ class Main {
 	/**
 	 * Subscribers menu.
 	 */
-	public static function subscribers_menu() {
+	public static function old_subscribers_menu() {
 
 		$hook_suffix = add_submenu_page(
 			'noptin',
 			esc_html__( 'Email Subscribers', 'newsletter-optin-box' ),
-			esc_html__( 'Email Subscribers', 'newsletter-optin-box' ),
+			esc_html__( 'Email Subscribers', 'newsletter-optin-box' ) . ' <span class="menu-counter">Old</span>',
 			get_noptin_capability(),
-			'noptin-subscribers',
+			'noptin-subscribers__old',
 			'\Hizzle\Noptin\Misc\Store_UI::render_admin_page'
 		);
 
@@ -202,5 +203,28 @@ class Main {
 		if ( self::$hook_suffix === $hook ) {
 			wp_set_script_translations( 'hizzlewp-store-ui', 'newsletter-optin-box', noptin()->plugin_path . 'languages' );
 		}
+	}
+
+	/**
+	 * Hides blocked subscribers.
+	 *
+	 * @param \Hizzle\Store\Query $query The query.
+	 */
+	public static function hide_blocked_subscribers( $query ) {
+		$excluded = wp_parse_list( $query->query_vars['status_not'] ?? array() );
+		$included = wp_parse_list( $query->query_vars['status'] ?? array() );
+
+		// Abort if we're already excluding blocked subscribers.
+		if ( in_array( 'blocked', $excluded, true ) ) {
+			return;
+		}
+
+		// Abort if we're already including blocked subscribers.
+		if ( in_array( 'blocked', $included, true ) ) {
+			return;
+		}
+
+		$excluded[] = 'blocked';
+		$query->set( 'status_not', $excluded );
 	}
 }
