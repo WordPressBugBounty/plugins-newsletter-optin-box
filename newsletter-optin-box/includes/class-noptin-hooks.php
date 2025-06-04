@@ -14,52 +14,11 @@ class Noptin_Hooks {
 	 */
 	public function __construct() {
 
-		// Register our action page's endpoint.
-		add_action( 'init', array( $this, 'add_rewrite_rule' ), 10, 0 );
-
-		// Temporarily hide opt-in forms.
-		add_action( 'init', array( $this, 'maybe_hide_optin_forms' ) );
-
 		// (Maybe) schedule a cron that runs daily.
 		add_action( 'admin_init', array( $this, 'maybe_create_scheduled_event' ) );
 
 		// (Maybe) subscribe users from custom forms.
 		add_action( 'init', array( $this, 'maybe_subscribe' ), 1000 );
-	}
-
-	/**
-	 * Add our noptin page rewrite tag and rule.
-	 *
-	 * This is only here for backwards compatibility.
-	 *
-	 * @deprecated
-	 * @since 1.2.9
-	 */
-	public function add_rewrite_rule() {
-
-		if ( is_using_new_noptin_forms() ) {
-			return;
-		}
-
-		add_rewrite_endpoint( 'noptin_newsletter', EP_ALL );
-
-		if ( ! get_option( 'noptin_flushed_rules' ) ) {
-			flush_rewrite_rules();
-			add_option( 'noptin_flushed_rules', 1 );
-		}
-
-	}
-
-	/**
-	 * Hide opt-in forms from existing users.
-	 *
-	 * @since 1.3.2
-	 */
-	public function maybe_hide_optin_forms() {
-
-		if ( ! empty( $_GET['noptin_hide'] ) ) {
-			setcookie( 'noptin_hide', 'true', time() + HOUR_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN );
-		}
 	}
 
 	/**

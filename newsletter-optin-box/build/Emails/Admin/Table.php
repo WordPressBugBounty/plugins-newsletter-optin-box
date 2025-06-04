@@ -460,16 +460,19 @@ class Table extends \WP_List_Table {
 			'action' => $this->get_email_action( $item ),
 		);
 
-		if ( 'publish' === $item->status && 'newsletter' === $item->type ) {
-			if ( '' !== get_post_meta( $item->id, 'completed', true ) ) {
-				$app['label'] = __( 'Sent', 'newsletter-optin-box' );
-			} elseif ( '' !== get_post_meta( $item->id, 'paused', true ) ) {
-				$app['label'] = __( 'Paused', 'newsletter-optin-box' );
-			} else {
-				$app['label'] = __( 'Sending', 'newsletter-optin-box' );
+		if ( 'publish' === $item->status ) {
+			if ( 'newsletter' === $item->type ) {
+				if ( '' !== get_post_meta( $item->id, 'completed', true ) ) {
+					$app['label'] = __( 'Sent', 'newsletter-optin-box' );
+				} elseif ( '' !== get_post_meta( $item->id, 'paused', true ) ) {
+					$app['label'] = __( 'Paused', 'newsletter-optin-box' );
+				} else {
+					$app['label'] = __( 'Sending', 'newsletter-optin-box' );
+				}
 			}
-		}
 
+			$app['statsUrl'] = $item->get_activity_url();
+		}
 		?>
 			<div class="noptin-email-status__app" data-app="<?php echo esc_attr( wp_json_encode( $app ) ); ?>">
 				<!-- spinner -->
@@ -544,12 +547,18 @@ class Table extends \WP_List_Table {
 	 * @return int
 	 */
 	public function column_recipients( $item ) {
+		$count = $item->get_send_count();
+
+		if ( ! $count ) {
+			return '0';
+		}
+
 		return sprintf(
 			'<a href="%s">%s</a>',
 			esc_url(
 				$item->get_activity_url( 'send' )
 			),
-			esc_html( $item->get_send_count() )
+			esc_html( $count )
 		);
 	}
 
@@ -591,8 +600,8 @@ class Table extends \WP_List_Table {
 		$clicks  = $item->get_click_count();
 		$percent = ( $sends && $clicks ) ? round( ( $clicks / $sends ) * 100, 2 ) : 0;
 
-		if ( ! empty( $unsubscribed ) ) {
-			$unsubscribed = sprintf(
+		if ( ! empty( $clicks ) ) {
+			$clicks = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url(
 					$item->get_activity_url( 'click' )
@@ -620,7 +629,7 @@ class Table extends \WP_List_Table {
 			$callback  = apply_filters( 'noptin_format_price_callback', '', $revenue );
 			$formatted = empty( $callback ) ? $revenue : call_user_func( $callback, $revenue );
 
-			if ( 0 === $revenue ) {
+			if ( empty( $revenue ) ) {
 				return $formatted;
 			}
 
@@ -632,8 +641,15 @@ class Table extends \WP_List_Table {
 		}
 
 		return sprintf(
-			'<span title="%s" class="noptin-tip dashicons dashicons-lock"></span>',
-			esc_attr__( 'Activate your license key to start tracking', 'newsletter-optin-box' )
+			'<span class="noptin-tooltip" data-app="%s"></span>',
+			esc_attr(
+				wp_json_encode(
+					array(
+						'icon'    => 'lock',
+						'content' => esc_attr__( 'Activate your license key to start tracking', 'newsletter-optin-box' ),
+					)
+				)
+			)
 		);
 	}
 
@@ -696,8 +712,15 @@ class Table extends \WP_List_Table {
 		}
 
 		return sprintf(
-			'<span class="noptin-tip dashicons dashicons-move" style="cursor: move;" title="%s"></span>',
-			esc_attr__( 'Re-order', 'newsletter-optin-box' )
+			'<span class="dashicons-move-wrapper"><span class="noptin-tooltip" data-app="%s"></span></span>',
+			esc_attr(
+				wp_json_encode(
+					array(
+						'icon'    => 'move',
+						'content' => esc_attr__( 'Re-order', 'newsletter-optin-box' ),
+					)
+				)
+			)
 		);
 	}
 
@@ -876,8 +899,23 @@ class Table extends \WP_List_Table {
 			'opens'        => __( 'Opened', 'newsletter-optin-box' ),
 			'clicks'       => __( 'Clicked', 'newsletter-optin-box' ),
 			'revenue'      => sprintf(
-				'%s <span data-tooltip-content="#noptin-revenue-tooltip-content" class="noptin-tip dashicons dashicons-info"></span>',
-				__( 'Revenue', 'newsletter-optin-box' )
+				'%s <span class="noptin-tooltip" data-app="%s"></span>',
+				esc_html__( 'Revenue', 'newsletter-optin-box' ),
+				esc_attr(
+					wp_json_encode(
+						array(
+							'name'    => 'revenue',
+							'content' => noptin_has_alk() ?
+								esc_html__( 'Revenue is tracked when someone makes a purchase within 2 weeks of clicking on a link in a campaign', 'newsletter-optin-box' ) :
+								esc_html__( 'Activate your license key to track and view revenue made per campaign', 'newsletter-optin-box' ),
+							'button'  => array(
+								'text'    => esc_html__( 'Learn more', 'newsletter-optin-box' ),
+								'href'    => noptin_get_upsell_url( 'guide/sending-emails/tracking-revenue-generated-per-email/', 'email-campaigns', 'revenue-tracking' ),
+								'variant' => 'primary',
+							),
+						)
+					)
+				)
 			),
 			'unsubscribed' => __( 'Unsubscribed', 'newsletter-optin-box' ),
 			'date_sent'    => __( 'Date', 'newsletter-optin-box' ),
@@ -901,7 +939,7 @@ class Table extends \WP_List_Table {
 			unset( $columns['revenue'] );
 		}
 
-		if ( ! noptin_supports_ecommerce_tracking() || ! get_noptin_option( 'enable_ecommerce_tracking', true ) ) {
+		if ( noptin_has_alk() && ( ! noptin_supports_ecommerce_tracking() || ! get_noptin_option( 'enable_ecommerce_tracking', true ) ) ) {
 			unset( $columns['revenue'] );
 		}
 

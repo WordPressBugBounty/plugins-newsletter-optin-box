@@ -51,7 +51,6 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 		add_action( 'noptin_tasks_after_execute', array( __CLASS__, 'reset_task' ), 0 );
 		add_action( 'noptin_tasks_failed_execution', array( __CLASS__, 'reset_task' ), 0 );
 		add_action( 'noptin_tasks_run_pending', array( $this, 'run_pending' ) );
-		add_filter( 'noptin-addons-pack-modules', array( __CLASS__, 'remove_addons_tasks' ) );
 
 		if ( is_admin() ) {
 			add_filter( 'get_noptin_admin_tools', array( __CLASS__, 'filter_admin_tools' ) );
@@ -771,10 +770,14 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 			esc_html__( 'Tasks', 'newsletter-optin-box' ),
 			get_noptin_capability(),
 			'noptin-tasks',
-			'\Hizzle\Noptin\Misc\Store_UI::render_admin_page'
+			'\Hizzle\WordPress\ScriptManager::render_collection'
 		);
 
-		\Hizzle\Noptin\Misc\Store_UI::collection_menu( $hook_suffix, 'noptin/tasks' );
+		\Hizzle\WordPress\ScriptManager::add_collection(
+			$hook_suffix,
+			'noptin',
+			'tasks'
+		);
 	}
 
 	/**
@@ -782,32 +785,5 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 */
 	public static function hide_tasks_menu() {
 		remove_submenu_page( 'noptin', 'noptin-tasks' );
-
-		if ( isset( $_GET['task_action'] ) && isset( $_GET['task_id'] ) && isset( $_GET['task_nonce'] ) && wp_verify_nonce( $_GET['task_nonce'], 'noptin_task_action' ) ) {
-			$action  = sanitize_text_field( wp_unslash( $_GET['task_action'] ) );
-
-			$task = self::get( absint( $_GET['task_id'] ) );
-
-			if ( ! is_wp_error( $task ) ) {
-				if ( 'pending' === $task->get_status() && 'run' === $action ) {
-					$task->process();
-				} elseif ( 'pending' === $task->get_status() && 'cancel' === $action ) {
-					$task->task_canceled( $task );
-				} elseif ( 'pending' !== $task->get_status() && 're_run' === $action ) {
-					self::retry_task( $task, 0 );
-				}
-			}
-		}
-	}
-
-	/**
-	 * Removes the tasks module from the addons pack.
-	 *
-	 * @param array $modules
-	 * @return array
-	 */
-	public static function remove_addons_tasks( $modules ) {
-		unset( $modules['tasks'] );
-		return $modules;
 	}
 }

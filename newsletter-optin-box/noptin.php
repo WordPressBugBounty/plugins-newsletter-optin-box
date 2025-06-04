@@ -11,7 +11,7 @@
  * Description:     A very fast and lightweight WordPress newsletter plugin
  * Author:          Noptin Newsletter
  * Author URI:      https://github.com/picocodes
- * Version:         3.8.7
+ * Version:         4.0.0
  * Text Domain:     newsletter-optin-box
  * License:         GPLv3
  * License URI:     http://www.gnu.org/licenses/gpl-3.0.txt
@@ -46,7 +46,7 @@ class Noptin {
 	 * @var   string Plugin version
 	 * @since 1.0.0
 	 */
-	public $version = '3.8.7';
+	public $version = '4.0.0';
 
 	/**
 	 * The current database version.
@@ -148,22 +148,6 @@ class Noptin {
 	public $admin;
 
 	/**
-	 * The main custom fields class.
-	 *
-	 * @var Noptin_Custom_Fields
-	 * @since       1.5.5
-	 */
-	public $custom_fields;
-
-	/**
-	 * The main forms class.
-	 *
-	 * @var Noptin_Form_Manager
-	 * @since       1.6.2
-	 */
-	public $forms;
-
-	/**
 	 * The main emails class.
 	 *
 	 * @var Noptin_Email_Manager
@@ -193,13 +177,6 @@ class Noptin {
 	 * @since       1.7.0
 	 */
 	public $actions_page;
-
-	/**
-	 * Post types.
-	 *
-	 * @var Noptin_Post_Types
-	 */
-	public $post_types;
 
 	/**
 	 * Get active instance
@@ -255,21 +232,20 @@ class Noptin {
 
 		$plugin_path = plugin_dir_path( __FILE__ );
 
-		// Non-class files.
-		require_once $plugin_path . 'vendor/autoload.php';
-		require_once $plugin_path . 'includes/functions.php';
-		require_once $plugin_path . 'includes/subscriber.php';
-		require_once $plugin_path . 'includes/forms/forms.php';
-		require_once $plugin_path . 'includes/forms/class-form-manager.php';
-		require_once $plugin_path . 'includes/emails/class-manager.php';
-		require_once $plugin_path . 'includes/libraries/noptin-com/class-noptin-com.php';
-
 		// Register autoloader.
 		try {
 			spl_autoload_register( array( $this, 'autoload' ), true );
 		} catch ( Exception $e ) {
 			log_noptin_message( $e->getMessage() );
 		}
+
+		// Non-class files.
+		require_once $plugin_path . 'vendor/autoload.php';
+		require_once $plugin_path . 'includes/functions.php';
+		require_once $plugin_path . 'includes/subscriber.php';
+		require_once $plugin_path . 'includes/emails/class-manager.php';
+		require_once $plugin_path . 'includes/libraries/noptin-com/class-noptin-com.php';
+
 	}
 
 	/**
@@ -285,9 +261,6 @@ class Noptin {
 		$this->plugin_path = plugin_dir_path( __FILE__ );
 		$this->plugin_url  = plugins_url( '/', __FILE__ );
 		$this->is_test     = 'production' !== wp_get_environment_type();
-
-		// Form manager.
-		$this->forms = new Noptin_Form_Manager();
 
 		// Email manager.
 		$this->emails = new Noptin_Email_Manager();
@@ -315,9 +288,6 @@ class Noptin {
 		$this->integrations_new = new \Hizzle\Noptin\Integrations\Main();
 		$this->integrations     = new Noptin_Integrations();
 
-		// Custom fields.
-		$this->custom_fields = new Noptin_Custom_Fields();
-
 		// DB.
 		$this->db();
 
@@ -341,7 +311,7 @@ class Noptin {
 		add_action( 'init', array( $this, 'load_plugin_textdomain' ), 1 );
 
 		// (Maybe) upgrade the database;
-		add_action( 'init', array( $this, 'maybe_upgrade_db' ), 0 );
+		add_action( 'noptin_db_before_init', array( $this, 'maybe_upgrade_db' ) );
 
 		// css body class.
 		add_filter( 'body_class', array( $this, 'body_class' ) );
@@ -381,9 +351,6 @@ class Noptin {
 
 		// Actions page controller.
 		$this->actions_page = new Noptin_Page();
-
-		// Post types controller.
-		$this->post_types = new Noptin_Post_Types();
 
 		// Automation tasks.
 		$this->automation_rules   = new Noptin_Automation_Rules();

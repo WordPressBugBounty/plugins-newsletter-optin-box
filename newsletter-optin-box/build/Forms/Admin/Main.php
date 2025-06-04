@@ -27,29 +27,15 @@ class Main {
 	 *
 	 */
 	public static function init() {
+		// Enqueue scripts and styles.
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
-	}
 
-	/**
-	 * Registers the form editing metabox.
-	 *
-	 * @since       1.6.2
-	 * @param \WP_Post $post
-	 */
-	public static function add_meta_boxes( $post ) {
+		// Forms list table.
+		List_Table::init();
 
-		if ( is_legacy_noptin_form( $post->ID ) ) {
-
-			add_meta_box(
-				'noptin_form_editor',
-				__( 'Form Editor', 'newsletter-optin-box' ),
-				__CLASS__ . '::render_admin_page',
-				null,
-				'normal',
-				'high'
-			);
-
-		}
+		// Admin menu.
+		add_action( 'admin_menu', array( __CLASS__, 'forms_menu' ), 30 );
+		add_action( 'admin_menu', array( __CLASS__, 'menu_highlight' ), 15 );
 	}
 
 	/**
@@ -64,7 +50,7 @@ class Main {
 		}
 
 		// Check if the current post type is 'form' (assuming 'form' is your custom post type for forms).
-		if ( ! isset( $post ) || $post->post_type !== 'noptin-form' ) {
+		if ( ! isset( $post ) || 'noptin-form' !== $post->post_type ) {
 			return false;
 		}
 
@@ -80,7 +66,7 @@ class Main {
 		global $post;
 
 		// Check if we're on the post edit screen
-		if ( ! self::is_forms_edit_page() || ! is_legacy_noptin_form( $post->ID ) ) {
+		if ( ! self::is_forms_edit_page() ) {
 			return;
 		}
 
@@ -96,21 +82,36 @@ class Main {
 		);
 
 		// Localize the script.
-		wp_localize_script(
-			'noptin-form-editor',
-			'noptinForm',
+		$params = apply_filters(
+			'noptin_form_editor_data',
 			array(
-				'data' => apply_filters(
-					'noptin_form_editor_data',
-					array(
-						'form'         => $post->ID,
-						'brand'        => noptin()->white_label->get_details(),
-						'settings'     => self::sidebar_fields(),
-						'templates'    => self::get_templates(),
-						'default_form' => include plugin_dir_path( __FILE__ ) . 'default-form.php',
-					)
-				),
+				'form'         => $post->ID,
+				'brand'        => noptin()->white_label->get_details(),
+				'settings'     => self::sidebar_fields(),
+				'templates'    => self::get_templates(),
+				'default_form' => include plugin_dir_path( __FILE__ ) . 'default-form.php',
 			)
+		);
+
+		// Check if it was created by the legacy editor.
+		$state = get_post_meta( $post->ID, '_noptin_state', true );
+
+		if ( is_object( $state ) ) {
+			$state = (array) $state;
+		}
+
+		if ( ! is_array( $state ) || empty( $state['fields'] ) ) {
+			$form                    = new \Hizzle\Noptin\Forms\Form( $post->ID );
+			$params['form_settings'] = $form->get_all_data();
+		}
+
+		wp_add_inline_script(
+			'noptin-form-editor',
+			sprintf(
+				'var noptinForm = %s;',
+				wp_json_encode( $params )
+			),
+			'before'
 		);
 
 		// Load the translations.
@@ -148,6 +149,9 @@ class Main {
 			sprintf( '%s/autosaves?context=edit', $rest_path ),
 			'/wp/v2/settings',
 			array( '/wp/v2/settings', 'OPTIONS' ),
+			array( '/wp/v2/pages', 'OPTIONS' ),
+			array( '/wp/v2/media', 'OPTIONS' ),
+			'wp/v2/block-patterns/categories',
 		);
 
 		/*
@@ -233,5 +237,29 @@ class Main {
 	public static function add_block_editor_body_class( $classes ) {
 		$classes .= ' block-editor-page is-fullscreen-mode';
 		return $classes;
+	}
+
+	/**
+	 * Add forms menu item.
+	 */
+	public static function forms_menu() {
+		add_submenu_page(
+			'noptin',
+			esc_html__( 'Subscription Forms', 'newsletter-optin-box' ),
+			esc_html__( 'Subscription Forms', 'newsletter-optin-box' ),
+			get_noptin_capability(),
+			'edit.php?post_type=noptin-form'
+		);
+	}
+
+	/**
+	 * Highlights the correct top level admin menu item for post type add screens.
+	 */
+	public static function menu_highlight() {
+		global $parent_file, $post_type;
+
+		if ( 'noptin-form' === $post_type ) {
+			$parent_file  = 'noptin'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
 	}
 }

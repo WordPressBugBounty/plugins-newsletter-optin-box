@@ -630,7 +630,18 @@ function noptin_is_singular( $posts = '' ) {
 	}
 
 	// Check if current url is in one of the urls.
-	return in_array( noptin_clean_url(), $posts['urls'], true );
+	$current_url = noptin_clean_url();
+	foreach ( $posts['urls'] as $url ) {
+		// Wildcard match.
+		if ( substr( $url, -1 ) === '*' && strpos( $current_url, rtrim( $url, '*' ) ) === 0 ) {
+			return true;
+		} elseif ( $url === $current_url ) {
+			return true;
+		}
+	}
+
+	// No match found.
+	return false;
 }
 
 /**
@@ -1326,7 +1337,7 @@ function noptin_is_preview() {
 		return true;
 	}
 
-	return false;
+	return apply_filters( 'noptin_is_preview', false );
 }
 
 /**
@@ -2266,4 +2277,37 @@ function noptin_get_smallest_acceptable_image_size( $minimum_width = 150 ) {
 	$smallest_size_cache[ $minimum_width ] = $smallest_size;
 
 	return $smallest_size;
+}
+
+/**
+ * Converts a time unit to seconds.
+ *
+ * @param string $unit
+ * @return int|false
+ */
+function noptin_convert_time_unit_to_seconds( $unit ) {
+	// Parse value and unit, e.g. "1hours", "30minutes"
+	if ( preg_match( '/^(\d+)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)$/i', trim( $unit ), $matches ) ) {
+		$value = (int) $matches[1];
+		$unit  = strtolower( rtrim( $matches[2], 's' ) ); // normalize to singular
+
+		switch ( $unit ) {
+			case 'second':
+				return $value;
+			case 'minute':
+				return $value * MINUTE_IN_SECONDS;
+			case 'hour':
+				return $value * HOUR_IN_SECONDS;
+			case 'day':
+				return $value * DAY_IN_SECONDS;
+			case 'week':
+				return $value * WEEK_IN_SECONDS;
+			case 'month':
+				return $value * 30 * DAY_IN_SECONDS;
+			case 'year':
+				return $value * YEAR_IN_SECONDS;
+		}
+	}
+
+	return false;
 }

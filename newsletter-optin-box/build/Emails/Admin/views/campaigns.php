@@ -48,21 +48,61 @@ if ( $parent ) {
 		noptin()->admin->show_notices();
 
 		// Check if sending has been paused due to limits.
-		$emails_sent_this_hour = \Hizzle\Noptin\Bulk_Emails\Main::emails_sent_this_hour();
-		$email_sending_limit   = get_noptin_option( 'per_hour', 0 );
+		if ( noptin_email_sending_limit_reached() ) {
 
-	if ( ! empty( $email_sending_limit ) && $emails_sent_this_hour >= $email_sending_limit ) {
+			$message = sprintf(
+				'<h3>%s</h3>',
+				__( 'Email sending has been paused', 'newsletter-optin-box')
+			);
 
-		$message = sprintf(
-			/* translators: %1$s: number of emails sent this hour, %2$s: number of emails allowed to be sent per hour */
-			esc_html__( 'Sending has been paused due to sending limits. %1$s emails have been sent this hour. You can send %2$s emails per hour.', 'newsletter-optin-box' ),
-			'<strong>' . esc_html( $emails_sent_this_hour ) . '</strong>',
-			'<strong>' . esc_html( $email_sending_limit ) . '</strong>'
-		);
+			$message .= '<p>' .
+				sprintf(
+					/* translators: %1$s: number of emails allowed to be sent per period, %2$s: time period */
+					esc_html__( 'You’ve sent %1$s emails in the past %2$s, triggering the sending limit.', 'newsletter-optin-box' ),
+					'<strong>' . esc_html( noptin_max_emails_per_period() ) . '</strong>',
+					'<strong>' . esc_html( human_time_diff( time() + noptin_get_email_sending_rolling_period() ) ) . '</strong>'
+				) . '</p>';
 
-		noptin()->admin->print_notice( 'error', $message );
+			$next_send = noptin_get_next_email_send_time();
 
-	}
+			if ( $next_send ) {
+				$message .= ' <p>' .
+					sprintf(
+						/* translators: %s: time until next email can be sent */
+						esc_html__( 'Email sending will resume in %s.', 'newsletter-optin-box' ),
+						'<strong>' . esc_html( human_time_diff( $next_send ) ) . '</strong>'
+					) . '</p>';
+			}
+
+			noptin()->admin->print_notice( 'error', $message );
+		}
+
+		// Check if external CRON is not being used.
+		$can_display_cron_notice = ! apply_filters( 'noptin_display_cron_notice', get_user_meta( get_current_user_id(), 'noptin_dismiss_cron_notice', true ) );
+		if ( $can_display_cron_notice && ( ! defined( 'DISABLE_WP_CRON' ) || ! DISABLE_WP_CRON ) ) {
+			$message = sprintf(
+				'<h3>%s</h3>',
+				__( 'WP-Cron is being used for email sending', 'newsletter-optin-box')
+			);
+
+			$message .= '<p>' . __( 'Your site is using WordPress\' built-in cron system to send emails. This may cause delays in email delivery if your site is cached or doesn\'t receive regular traffic.', 'newsletter-optin-box' ) . '</p>';
+
+			$message .= '<p>' . sprintf(
+				/* translators: %s: link to documentation */
+				__( 'For better email delivery, consider setting up a real cron job. <a href="%s" target="_blank">Learn more</a>', 'newsletter-optin-box' ),
+				noptin_get_guide_url( 'External CRON', 'sending-emails/how-to-set-up-an-external-cron-job-in-wordpress-and-speed-up-email-sending/' )
+			) . '</p>';
+
+			noptin()->admin->print_notice(
+				'warning',
+				$message,
+				wp_nonce_url(
+					add_query_arg( array() ),
+					'noptin_dismiss_cron_notice',
+					'noptin_dismiss_cron_notice'
+				)
+			);
+		}
 	?>
 
 	<!-- Display tabs -->
@@ -123,18 +163,4 @@ if ( $parent ) {
 		</form>
 	</div>
 
-</div>
-
-<div style="display: none;">
-	<div id="noptin-revenue-tooltip-content">
-		<?php
-		if ( noptin_has_alk() ) {
-			esc_html_e( 'Revenue is tracked when someone makes a purchase within 2 weeks of clicking on a link in a campaign', 'newsletter-optin-box' );
-		} else {
-			esc_html_e( 'Activate your license key to track and view revenue made per campaign', 'newsletter-optin-box' );
-		}
-		?>
-		<br />
-		<a class="button button-primary" href="<?php echo esc_url( noptin_get_upsell_url( 'guide/sending-emails/tracking-revenue-generated-per-email/', 'email-campaigns', 'revenue-tracking' ) ); ?>" target="_blank"><?php esc_html_e( 'Learn more', 'newsletter-optin-box' ); ?></a>
-	</div>
 </div>

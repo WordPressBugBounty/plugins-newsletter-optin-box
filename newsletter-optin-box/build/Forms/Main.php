@@ -22,6 +22,11 @@ class Main {
 	public static $listener;
 
 	/**
+	 * @var Listener Form smart tags.
+	 */
+	public static $smart_tags;
+
+	/**
 	 * @var bool Whether the form scripts have been enqueued.
 	 */
 	public static $scripts_loaded = false;
@@ -32,9 +37,17 @@ class Main {
 	 */
 	public static function init() {
 
+		// Load functions.
+		require_once plugin_dir_path( __FILE__ ) . 'functions.php';
+
 		// Load modules.
 		self::$listener = new Listener();
+		self::$smart_tags = new Smart_Tags();
+
+		// Register widgets.
 		Widgets\Main::init();
+
+		// Popups.
 		Popups::init();
 
 		// Adds forms before and after post content.
@@ -58,6 +71,8 @@ class Main {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
 		add_filter( 'noptin_load_form_scripts', array( __CLASS__, 'should_enqueue_scripts' ), 20 );
 		add_action( 'init', array( __CLASS__, 'register_blocks' ) );
+		add_filter( 'default_scripts_gnore_from_delay', __CLASS__ . '::breeze_compatibility' );
+		add_action( 'init', array( __CLASS__, 'maybe_hide_optin_forms' ) );
 	}
 
 	/**
@@ -234,9 +249,13 @@ class Main {
 			return;
 		}
 
-		$new_form = new \Noptin_Form_Legacy(
-			array(
-				'optinName' => __( 'Newsletter Subscription Form', 'newsletter-optin-box' ),
+		$default_form = include plugin_dir_path( __FILE__ ) . 'Admin/default-form.php';
+		$new_form     = new Form(
+				array_merge(
+					array(
+					'optinName' => __( 'Newsletter Subscription Form', 'newsletter-optin-box' ),
+				),
+				$default_form
 			)
 		);
 
@@ -279,7 +298,7 @@ class Main {
 			'noptin-form',
 			sprintf(
 				'var noptinParams = %s;',
-				wp_json_encode( $params, JSON_PRETTY_PRINT )
+				wp_json_encode( $params )
 			),
 			'before'
 		);
@@ -352,5 +371,28 @@ class Main {
 		register_block_type( plugin_dir_path( __FILE__ ) . '/assets/block' );
 
 		do_action( 'register_noptin_form_block_type' );
+	}
+
+	/**
+	 * Breeze compatibility.
+	 *
+	 * @param array $scripts
+	 * @return array
+	 */
+	public static function breeze_compatibility( $scripts ) {
+		$scripts[] = 'noptin';
+		return $scripts;
+	}
+
+	/**
+	 * Hide opt-in forms from existing users.
+	 *
+	 * @since 1.3.2
+	 */
+	public static function maybe_hide_optin_forms() {
+
+		if ( ! empty( $_GET['noptin_hide'] ) ) {
+			setcookie( 'noptin_hide', 'true', time() + HOUR_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN );
+		}
 	}
 }
