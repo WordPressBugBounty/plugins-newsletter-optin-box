@@ -37,6 +37,9 @@ class Main {
 	 */
 	public static function init() {
 
+		// Load functions.
+		require_once plugin_dir_path( __FILE__ ) . 'functions.php';
+
 		// Register post types.
 		add_action( 'init', array( __CLASS__, 'register_post_types' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_fields' ) );
@@ -393,6 +396,13 @@ class Main {
 				'plural_label'       => __( 'Newsletters', 'newsletter-optin-box' ),
 				'new_campaign_label' => __( 'New Campaign', 'newsletter-optin-box' ),
 				'click_to_add_first' => __( 'Click the button below to send your first newsletter campaign', 'newsletter-optin-box' ),
+				'defaults'           => array(
+					'name' => sprintf(
+						// Translators: %s is the current date.
+						__( 'Newsletter - %s', 'newsletter-optin-box' ),
+						date_i18n( get_option( 'date_format' ) )
+					),
+				)
 			)
 		);
 
@@ -885,13 +895,16 @@ class Main {
 		// Get the request parameters.
 		$params = $request->get_params();
 
-		// If meta is being updated, filter out Elementor fields
+		// If meta is being updated, ensure it only contains our meta keys.
+		// The WP Meta API is still buggy and errors when updating some third party meta keys.
 		if ( isset( $params['meta'] ) && is_array( $params['meta'] ) ) {
+			$our_meta_keys = array_keys( get_registered_meta_keys( 'post', $prepared_post->post_type ) );
+
 			$filtered_meta = array_filter(
 				$params['meta'],
-				function ( $key ) {
+				function ( $key ) use ( $our_meta_keys ) {
 					// Filter out protected meta keys.
-					return strpos( $key, '_' ) !== 0;
+					return strpos( $key, '_' ) !== 0 && in_array( $key, $our_meta_keys, true );
 				},
 				ARRAY_FILTER_USE_KEY
 			);
@@ -901,5 +914,23 @@ class Main {
 		}
 
 		return $prepared_post;
+	}
+
+	/**
+	 * Gets the most recent PHPMailer error message.
+	 *
+	 * @since 1.7.0
+	 *
+	 * @return string
+	 */
+	public static function get_phpmailer_last_error() {
+		global $phpmailer;
+
+		/** @var \PHPMailer\PHPMailer\PHPMailer $phpmailer */
+		if ( $phpmailer && ! empty( $phpmailer->ErrorInfo ) ) {
+			return $phpmailer->ErrorInfo;
+		}
+
+		return 'The mail function returned false.';
 	}
 }

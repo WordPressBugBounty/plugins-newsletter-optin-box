@@ -35,6 +35,7 @@ class People_List extends \Hizzle\Noptin\Bulk_Emails\Email_Sender {
 		$this->collection_type = $collection->type;
 		$this->options_key     = $collection->email_sender_options;
 
+		add_filter( "noptin_{$this->sender}_email_sender_supports_partial_sending", '__return_true' );
 		parent::__construct();
 	}
 
@@ -79,7 +80,7 @@ class People_List extends \Hizzle\Noptin\Bulk_Emails\Email_Sender {
 	/**
 	 * Fetches relevant contacts for the campaign.
 	 *
-	 * @param \Noptin_Newsletter_Email $campaign
+	 * @param \Hizzle\Noptin\Emails\Email $campaign
 	 */
 	public function get_recipients( $campaign ) {
 
@@ -108,7 +109,7 @@ class People_List extends \Hizzle\Noptin\Bulk_Emails\Email_Sender {
 	/**
 	 * Fired after a campaign is done sending.
 	 *
-	 * @param @param \Noptin_Newsletter_Email $campaign
+	 * @param @param \Hizzle\Noptin\Emails\Email $campaign
 	 *
 	 */
 	public function done_sending( $campaign ) {
@@ -118,12 +119,17 @@ class People_List extends \Hizzle\Noptin\Bulk_Emails\Email_Sender {
 	/**
 	 * Checks if a contact is valid for a given email.
 	 *
-	 * @param \Noptin_Newsletter_Email $campaign The current campaign.
+	 * @param \Hizzle\Noptin\Emails\Email $campaign The current campaign.
 	 * @param Person $person The person to check.
 	 * @param array $options The sender options.
 	 * @return bool
 	 */
 	public function can_email_contact( $campaign, $person, $options ) {
+
+		// Don't email twice, unless resending.
+		if ( ! $campaign->can_send_to( $person->get_email() ) ) {
+			return false;
+		}
 
 		// Check per subject conditions.
 		$conditional_logic = $campaign->get( 'extra_conditional_logic' );
@@ -159,7 +165,7 @@ class People_List extends \Hizzle\Noptin\Bulk_Emails\Email_Sender {
 	/**
 	 * Sends a single email to a contact.
 	 *
-	 * @param \Noptin_Newsletter_Email $campaign
+	 * @param \Hizzle\Noptin\Emails\Email $campaign
 	 * @param int $contact_id
 	 *
 	 * @return bool
@@ -214,6 +220,33 @@ class People_List extends \Hizzle\Noptin\Bulk_Emails\Email_Sender {
 				$collection->type => $contact_id,
 			)
 		);
+	}
+
+	/**
+	 * Returns the sender settings.
+	 *
+	 * @return array
+	 */
+	public function add_sender_settings( $senders ) {
+
+		if ( noptin_has_alk() && ! isset( $senders[ $this->sender ] ) ) {
+			$collection = $this->get_collection();
+
+			if ( $collection ) {
+				$senders[ $this->sender ] = array(
+					'label'        => $collection->label,
+					'description'  => sprintf(
+						'Send an email to %s',
+						$collection->label
+					),
+					'image'        => $collection->icon,
+					'is_installed' => true,
+					'is_local'     => true,
+				);
+			}
+		}
+
+		return parent::add_sender_settings( $senders );
 	}
 
 	/**

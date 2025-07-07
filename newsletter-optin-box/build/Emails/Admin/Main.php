@@ -104,7 +104,7 @@ class Main {
 	 */
 	public static function redirect_from_action_with_success( $success ) {
 		noptin()->admin->show_success( $success );
-		wp_safe_redirect( remove_query_arg( array( 'noptin_email_action', 'noptin_email_action_nonce', 'noptin_campaign' ) ) );
+		wp_safe_redirect( remove_query_arg( array( 'noptin_email_action', 'noptin_email_action_nonce', 'noptin_campaign', 'noptin_email_recipients' ) ) );
 		exit;
 	}
 
@@ -173,6 +173,8 @@ class Main {
 		delete_post_meta( $campaign->id, 'completed' );
 		delete_post_meta( $campaign->id, 'paused' );
 		delete_post_meta( $campaign->id, '_bulk_email_last_error' );
+		update_post_meta( $campaign->id, '_resend_to', $_REQUEST['noptin_email_recipients'] ?? 'all' );
+		update_post_meta( $campaign->id, '_resent_on', gmdate( 'Y-m-d H:i:s e', time() ) );
 		do_action( 'noptin_newsletter_campaign_published', $campaign );
 
 		self::redirect_from_action_with_success( __( 'Your email has been added to the sending queue and will be sent soon.', 'newsletter-optin-box' ) );

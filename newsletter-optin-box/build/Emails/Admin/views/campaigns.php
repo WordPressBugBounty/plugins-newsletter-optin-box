@@ -105,6 +105,18 @@ if ( $parent ) {
 		}
 	?>
 
+	<?php if ( isset( $_REQUEST['s'] ) && strlen( $_REQUEST['s'] ) ) : ?>
+		<div style="padding-top: 9px;">
+			<?php
+				printf(
+					/* translators: %s: Search query. */
+					__( 'Search results for: %s' ),
+					'<strong>' . esc_html( sanitize_text_field( rawurldecode( $_REQUEST['s'] ) ) ) . '</strong>'
+				);
+			?>
+		</div>
+	<?php endif; ?>
+
 	<!-- Display tabs -->
 	<div class="nav-tab-wrapper noptin-nav-tab-wrapper">
 		<?php
@@ -153,11 +165,18 @@ if ( $parent ) {
 		</div>
 	<?php endif; ?>
 
+	<div>
+		<?php $table->views(); ?>
+	</div>
+
 	<!-- Display actual content -->
 	<div class="noptin-email-campaigns-tab-content">
-		<form id="noptin-email-campaigns-table" method="post">
+		<form id="noptin-email-campaigns-table" method="get">
+			<?php $table->search_box( __( 'Search Campaigns', 'newsletter-optin-box' ), 'post' ); ?>
 			<?php foreach ( $query_args as $key => $value ) : ?>
-				<input type="hidden" name="<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $value ); ?>"/>
+				<?php if ( ! in_array( $key, array( 's', '_wpnonce', '_wp_http_referer', 'action', 'action2' ) ) ) : ?>
+					<input type="hidden" name="<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $value ); ?>"/>
+				<?php endif; ?>
 			<?php endforeach; ?>
 			<?php $table->display(); ?>
 		</form>

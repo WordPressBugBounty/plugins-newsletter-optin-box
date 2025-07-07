@@ -86,38 +86,96 @@ class Table extends \WP_List_Table {
 
 		$post_type_object = get_post_type_object( 'noptin-campaign' );
 
-		// Prepare query params.
-		$orderby = empty( $_GET['orderby'] ) ? 'id' : sanitize_text_field( $_GET['orderby'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$order   = empty( $_GET['order'] ) ? 'desc' : sanitize_text_field( $_GET['order'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
+		$orderby = 'id';
+		$order   = 'desc';
 		if ( $this->email_type->supports_menu_order ) {
 			$orderby = 'menu_order';
 			$order   = 'asc';
 		}
 
+		// Prepare query params.
+		$orderby = empty( $_GET['orderby'] ) ? $orderby : sanitize_text_field( $_GET['orderby'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$order   = empty( $_GET['order'] ) ? $order : sanitize_text_field( $_GET['order'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
 		$query_args = array(
 			'post_type'      => 'noptin-campaign',
-			'post_status'    => array( 'pending', 'draft', 'future', 'publish' ),
-			'meta_key'       => 'campaign_type',
-			'meta_value'     => $this->email_type->type,
+			'post_status'    => 'any',
 			'orderby'        => $orderby,
 			'order'          => $order,
 			'posts_per_page' => $this->per_page,
 			'paged'          => $this->get_pagenum(),
+			'meta_query'     => array(
+				array(
+					'key'   => 'campaign_type',
+					'value' => $this->email_type->type,
+				),
+			),
 		);
+
+		// Handle meta-based sorting for statistics columns.
+		if ( 0 === strpos( $orderby, '_' ) ) {
+			$query_args['meta_key'] = $orderby;
+			$query_args['orderby']  = 'meta_value_num';
+		}
 
 		// Trash campaigns.
 		if ( 'trash' === $this->email_type->type ) {
 			$query_args['post_status'] = 'trash';
-			unset( $query_args['meta_key'], $query_args['meta_value'] );
+			$query_args['meta_query']  = array();
+		}
+
+		// Filter by status (additional status filtering beyond post_status)
+		else if ( ! empty( $_GET['email_status_filter'] ) ) {
+			$status_filter = sanitize_text_field( rawurldecode( $_GET['email_status_filter'] ) );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+			$query_args['post_status'] = 'publish';
+			switch ( $status_filter ) {
+				case 'completed':
+					$query_args['meta_query'][] = array(
+						'key'   => 'completed',
+						'value' => '1',
+					);
+					break;
+				case 'sending':
+					$query_args['meta_query'][] = array(
+						'relation' => 'AND',
+						array(
+							'key'     => 'completed',
+							'compare' => 'NOT EXISTS',
+						),
+						array(
+							'key'     => 'paused',
+							'compare' => 'NOT EXISTS',
+						),
+					);
+					break;
+				case 'paused':
+					$query_args['meta_query'][] = array(
+						'key'   => 'paused',
+						'value' => '1',
+					);
+					break;
+				default:
+					$query_args['post_status'] = $status_filter;
+			}
 		}
 
 		if ( isset( $_GET['noptin_parent_id'] ) ) {
 			$query_args['post_parent'] = intval( $_GET['noptin_parent_id'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		}
 
-		if ( isset( $_GET['post_status'] ) ) {
-			$query_args['post_status'] = sanitize_text_field( $_GET['post_status'] );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// Filter by email subtype.
+		$sub_type = $this->email_type->type . '_type';
+		if ( ! empty( $_GET[ $sub_type ] ) ) {
+			$query_args['meta_query'][] = array(
+				'key'   => $sub_type,
+				'value' => sanitize_text_field( rawurldecode( $_GET[ $sub_type ] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			);
+		}
+
+		// Handle search functionality.
+		if ( ! empty( $_GET['s'] ) ) {
+			$query_args['s'] = sanitize_text_field( rawurldecode( $_GET['s'] ) );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		}
 
 		$query_args = apply_filters( 'manage_noptin_emails_wp_query_args', $query_args, $this );
@@ -494,13 +552,41 @@ class Table extends \WP_List_Table {
 
 			// Resend the newsletter.
 			if ( '' !== get_post_meta( $item->id, 'completed', true ) ) {
-				return array(
-					'actionUrl'        => $item->get_action_url( 'resend_campaign' ),
-					'buttonText'       => __( 'Resend', 'newsletter-optin-box' ),
-					'modalTitle'       => __( 'Resend Campaign', 'newsletter-optin-box' ),
-					'modalDescription' => __( 'Are you sure you want to resend this campaign?', 'newsletter-optin-box' ),
-					'icon'             => 'update',
+				$action = array(
+					'actionUrl'  => $item->get_action_url( 'resend_campaign' ),
+					'buttonText' => __( 'Resend', 'newsletter-optin-box' ),
+					'modalTitle' => __( 'Resend Campaign', 'newsletter-optin-box' ),
+					'icon'       => 'update',
+					'options'    => array(
+						'noptin_email_recipients' => array(
+							'label'            => __( 'Send to', 'newsletter-optin-box' ),
+							'el'               => 'radio',
+							'options'          => array(
+								array(
+									'label'       => __( 'All recipients', 'newsletter-optin-box' ),
+									'description' => __( 'Send to all matching recipients', 'newsletter-optin-box' ),
+									'value'       => 'all',
+								),
+								array(
+									'label'       => __( 'Only new recipients', 'newsletter-optin-box' ),
+									'description' => __( 'Send only to matching recipients who have not received this campaign before', 'newsletter-optin-box' ),
+									'value'       => 'new',
+								),
+							),
+							'default'          => 'all',
+							'customAttributes' => array(
+								'hideLabelFromVision' => true,
+							),
+						),
+					),
 				);
+
+				$sender = $item->get_sender();
+				if ( $item->is_mass_mail() && ! apply_filters( "noptin_{$sender}_email_sender_supports_partial_sending", false, $item ) ) {
+					unset( $action['options'] );
+				}
+
+				return $action;
 			}
 
 			// Resume a paused newsletter.
@@ -805,7 +891,7 @@ class Table extends \WP_List_Table {
 
 		$action = 'bulk-' . $this->_args['plural'];
 
-		if ( empty( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], $action ) ) {
+		if ( empty( $_REQUEST['_wpnonce'] ) || ! wp_verify_nonce( $_REQUEST['_wpnonce'], $action ) ) {
 			return;
 		}
 
@@ -833,12 +919,12 @@ class Table extends \WP_List_Table {
 			return;
 		}
 
-		if ( empty( $_POST['id'] ) ) {
+		if ( empty( $_REQUEST['id'] ) ) {
 			return;
 		}
 
 		$notice = '';
-		foreach ( $_POST['id'] as $id ) {
+		foreach ( wp_parse_id_list( $_REQUEST['id'] ) as $id ) {
 			$email = new Email( $id );
 
 			// Abort if not exists.
@@ -958,9 +1044,13 @@ class Table extends \WP_List_Table {
 		}
 
 		$sortable = array(
-			'id'        => array( 'id', true ),
-			'title'     => array( 'post_title', true ),
-			'date_sent' => array( 'post_date', true ),
+			'id'           => array( 'id', true ),
+			'title'        => array( 'title', true ),
+			'date_sent'    => array( 'date', true ),
+			'recipients'   => array( '_noptin_sends', false ),
+			'opens'        => array( '_noptin_opens', false ),
+			'clicks'       => array( '_noptin_clicks', false ),
+			'unsubscribed' => array( '_noptin_unsubscribed', false ),
 		);
 		return apply_filters( 'manage_noptin_emails_sortable_table_columns', $sortable );
 	}
@@ -986,6 +1076,10 @@ class Table extends \WP_List_Table {
 			return;
 		}
 
+		if ( 'top' === $which && $this->email_type->supports_sub_types ) {
+			$this->render_filters();
+		}
+
 		if ( $this->has_items() ) {
 			echo '<span class="noptin-email-campaigns__editor--add-new__button"></span>';
 		}
@@ -1009,5 +1103,88 @@ class Table extends \WP_List_Table {
 				<!-- /spinner -->
 			</div>
 		<?php
+	}
+
+	/**
+	 * Render filter dropdowns
+	 */
+	protected function render_filters() {
+		$input_name      = $this->email_type->type . '_type';
+		$current_subtype = $_GET[ $input_name ] ?? '';  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		?>
+		<div class="alignleft actions">
+			<select name="<?php echo esc_attr( $input_name ); ?>" id="filter-by-subtype">
+				<option value="" <?php selected( $current_subtype, '' ); ?>><?php esc_html_e( 'All', 'newsletter-optin-box' ); ?></option>
+				<?php foreach ( $this->get_email_subtypes() as $value => $label ) : ?>
+					<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $current_subtype, $value ); ?>>
+						<?php echo esc_html( $label ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+
+			<?php submit_button( __( 'Filter', 'newsletter-optin-box' ), '', 'filter_action', false, array( 'id' => 'post-query-submit' ) ); ?>
+
+		</div>
+		<?php
+	}
+
+	/**
+	 * Get available email subtypes for filtering
+	 *
+	 * @return array
+	 */
+	protected function get_email_subtypes() {
+		$subtypes = array();
+
+		// Get subtypes from the email type
+		$available_subtypes = $this->email_type->get_sub_types();
+		if ( ! empty( $available_subtypes ) ) {
+			foreach ( $available_subtypes as $key => $subtype ) {
+				if ( is_array( $subtype ) && isset( $subtype['label'] ) && ! empty( $subtype['category'] ) ) {
+					$subtypes[ $key ] = $subtype['label'];
+				}
+			}
+		}
+
+		return apply_filters( 'noptin_email_table_subtypes_filter', $subtypes, $this->email_type );
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	protected function get_views() {
+		if ( 'trash' === $this->email_type->type ) {
+			return array();
+		}
+
+		$statuses = get_post_statuses();
+		unset( $statuses['private'] );
+
+		if ( 'newsletter' === $this->email_type->type ) {
+			unset( $statuses['publish'] );
+
+			$statuses['completed'] = __( 'Sent', 'newsletter-optin-box' );
+			$statuses['sending']   = __( 'Sending', 'newsletter-optin-box' );
+			$statuses['paused']    = __( 'Paused', 'newsletter-optin-box' );
+		}
+
+		$status_links = array(
+			'all' => array(
+				'url'     => esc_url( remove_query_arg( 'email_status_filter' ) ),
+				'label'   => __( 'All', 'newsletter-optin-box' ),
+				'current' => ! isset( $_REQUEST['email_status_filter'] ),
+			),
+		);
+
+		foreach ( $statuses as $key => $label ) {
+			$status_links[ $key ] = array(
+				'url'     => esc_url( add_query_arg( 'email_status_filter', $key ) ),
+				'label'   => $label,
+				'current' => $key === ( $_REQUEST['email_status_filter'] ?? '' ),
+			);
+		}
+
+		return $this->get_views_links( $status_links );
 	}
 }

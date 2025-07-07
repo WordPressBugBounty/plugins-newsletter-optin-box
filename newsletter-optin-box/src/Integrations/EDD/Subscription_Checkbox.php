@@ -22,6 +22,7 @@ class Subscription_Checkbox extends \Hizzle\Noptin\Integrations\Checkbox_Integra
 		$this->slug    = 'edd';
 		$this->name    = 'Easy Digital Downloads';
 		$this->source  = 'edd_checkout';
+		$this->url     = '/getting-email-subscribers/edd-checkout/';
 
 		// Parent constructor.
 		parent::__construct();
@@ -152,7 +153,7 @@ class Subscription_Checkbox extends \Hizzle\Noptin\Integrations\Checkbox_Integra
 					'last_name'  => $payment->last_name,
 					'ip_address' => $payment->ip,
 				),
-				$this->map_custom_fields( $payment->address ?? array() )
+				$payment->address ?? array(),
 			)
 		);
 	}
@@ -162,12 +163,15 @@ class Subscription_Checkbox extends \Hizzle\Noptin\Integrations\Checkbox_Integra
 	 */
 	public function custom_fields() {
 		return array(
-			'line1'   => __( 'Billing Address 1', 'newsletter-optin-box' ),
-			'line2'   => __( 'Billing Address 2', 'newsletter-optin-box' ),
-			'zip'     => __( 'Billing Postcode', 'newsletter-optin-box' ),
-			'city'    => __( 'Billing City', 'newsletter-optin-box' ),
-			'state'   => __( 'Billing State', 'newsletter-optin-box' ),
-			'country' => __( 'Billing Country', 'newsletter-optin-box' ),
+			'name'       => __( 'Name', 'newsletter-optin-box' ),
+			'first_name' => __( 'First Name', 'newsletter-optin-box' ),
+			'last_name'  => __( 'Last Name', 'newsletter-optin-box' ),
+			'line1'      => __( 'Billing Address 1', 'newsletter-optin-box' ),
+			'line2'      => __( 'Billing Address 2', 'newsletter-optin-box' ),
+			'zip'        => __( 'Billing Postcode', 'newsletter-optin-box' ),
+			'city'       => __( 'Billing City', 'newsletter-optin-box' ),
+			'state'      => __( 'Billing State', 'newsletter-optin-box' ),
+			'country'    => __( 'Billing Country', 'newsletter-optin-box' ),
 		);
 	}
 }
