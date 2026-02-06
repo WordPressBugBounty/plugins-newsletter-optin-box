@@ -72,7 +72,7 @@ abstract class Noptin_Dynamic_Content_Tags {
 
 		$this->tags['current_path'] = array(
 			'description' => __( 'The path of the page.', 'newsletter-optin-box' ),
-			'replacement' => esc_html( $_SERVER['REQUEST_URI'] ),
+			'replacement' => esc_html( $_SERVER['REQUEST_URI'] ?? '' ),
 		);
 
 		$this->tags['date'] = array(
@@ -267,6 +267,11 @@ abstract class Noptin_Dynamic_Content_Tags {
 			}
 		}
 
+		// Convert booleans.
+		if ( is_bool( $replacement ) ) {
+			$replacement = $replacement ? 'yes' : 'no';
+		}
+
 		if ( is_array( $replacement ) ) {
 			$is_all_scalar = array_reduce(
 				$replacement,
@@ -279,18 +284,23 @@ abstract class Noptin_Dynamic_Content_Tags {
 			if ( ! wp_is_numeric_array( $replacement ) || ! $is_all_scalar ) {
 				$replacement = wp_json_encode( $replacement );
 			} else {
+				if ( is_array( $config['options'] ?? '' ) && 'label' === ( $attributes['return'] ?? '' ) ) {
+					$new_replacement = array();
+					foreach ( $replacement as $value ) {
+						$new_replacement[] = $config['options'][ $value ] ?? $value;
+					}
+					$replacement = $new_replacement;
+				}
+
 				$replacement = implode( ', ', $replacement );
 			}
+		} elseif ( ( is_string( $replacement ) || is_numeric( $replacement )) && is_array( $config['options'] ?? '' ) && 'label' === ( $attributes['return'] ?? '' ) ) {
+			$replacement = $config['options'][ $replacement ] ?? $replacement;
 		}
 
 		// Convert dates.
 		if ( is_a( $replacement, 'DateTime' ) ) {
 			$replacement = $replacement->format( get_option( 'date_format' ) );
-		}
-
-		// Convert booleans.
-		if ( is_bool( $replacement ) ) {
-			$replacement = $replacement ? 'yes' : 'no';
 		}
 
 		// Nulls.
@@ -417,48 +427,48 @@ abstract class Noptin_Dynamic_Content_Tags {
 	}
 
 	/**
-	 * @param string $string
+	 * @param string $content
 	 *
 	 * @return string
 	 */
-	public function replace_in_body( $string ) {
-		return $this->replace( $string, '' );
+	public function replace_in_body( $content ) {
+		return $this->replace( $content, '' );
 	}
 
 	/**
-	 * @param string $string
+	 * @param string $content
 	 *
 	 * @return string|mixed
 	 */
-	public function replace_in_content( $string ) {
-		return $this->replace( $string, 'wp_kses_post' );
+	public function replace_in_content( $content ) {
+		return $this->replace( $content, 'wp_kses_post' );
 	}
 
 	/**
-	 * @param string $string
+	 * @param string $content
 	 *
 	 * @return string
 	 */
-	public function replace_in_html( $string ) {
-		return $this->replace( $string, 'esc_html' );
+	public function replace_in_html( $content ) {
+		return $this->replace( $content, 'esc_html' );
 	}
 
 	/**
-	 * @param string $string
+	 * @param string $content
 	 *
 	 * @return string
 	 */
-	public function replace_in_attributes( $string ) {
-		return $this->replace( $string, 'esc_attr' );
+	public function replace_in_attributes( $content ) {
+		return $this->replace( $content, 'esc_attr' );
 	}
 
 	/**
-	 * @param string $string
+	 * @param string $content
 	 *
 	 * @return string
 	 */
-	public function replace_in_url( $string ) {
-		return $this->replace( $string, 'urlencode' );
+	public function replace_in_url( $content ) {
+		return $this->replace( $content, 'urlencode' );
 	}
 
 	/**
@@ -475,8 +485,8 @@ abstract class Noptin_Dynamic_Content_Tags {
 	 *
 	 * @return string
 	 */
-	public function replace_in_email( $string ) {
-		return $this->replace( $string, 'sanitize_email' );
+	public function replace_in_email( $content ) {
+		return $this->replace( $content, 'sanitize_email' );
 	}
 
 	/**
@@ -495,7 +505,7 @@ abstract class Noptin_Dynamic_Content_Tags {
 		$default = isset( $args['default'] ) ? $args['default'] : '';
 
 		if ( isset( $_COOKIE[ $name ] ) ) {
-			return esc_html( stripslashes( $_COOKIE[ $name ] ) );
+			return esc_html( wp_unslash( $_COOKIE[ $name ] ) );
 		}
 
 		return esc_html( $default );
@@ -652,8 +662,8 @@ abstract class Noptin_Dynamic_Content_Tags {
 	public function check_conditional_logic( $conditional_logic, $skip_tags = array(), $log = true ) {
 
 		// Retrieve the conditional logic.
-		$action  = $conditional_logic['action']; // allow or prevent.
-		$type    = $conditional_logic['type']; // all or any.
+		$action  = $conditional_logic['action'] ?? 'allow'; // allow or prevent.
+		$type    = $conditional_logic['type'] ?? 'all'; // all or any.
 		$skipped = array();
 
 		// Loop through each rule.

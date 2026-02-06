@@ -21,9 +21,17 @@ class Actions {
 
 		// User unsubscribe.
 		add_action( 'noptin_actions_handle_unsubscribe', array( __CLASS__, 'unsubscribe_user' ) );
+		noptin()->actions_page->add_confirmable_action(
+			'unsubscribe',
+			__( 'Unsubscribe', 'newsletter-optin-box' )
+		);
 
 		// User resubscribe.
 		add_action( 'noptin_actions_handle_resubscribe', array( __CLASS__, 'resubscribe_user' ) );
+		noptin()->actions_page->add_confirmable_action(
+			'resubscribe',
+			__( 'Resubscribe', 'newsletter-optin-box' )
+		);
 
 		// User confirm.
 		add_action( 'noptin_actions_handle_confirm', array( __CLASS__, 'handle_confirm' ) );
@@ -68,6 +76,7 @@ class Actions {
 		// Fetch the subscriber.
 		$subscriber = self::get_subscriber();
 		if ( ! $subscriber || ! $subscriber->exists() ) {
+			// This will create a new unsubscribed subscriber.
 			if ( ! empty( $recipient['email'] ) ) {
 				unsubscribe_noptin_subscriber( $recipient['email'], $campaign_id );
 			}
@@ -84,10 +93,6 @@ class Actions {
 		// Process campaigns.
 		if ( ! empty( $campaign_id ) ) {
 			increment_noptin_campaign_stat( $campaign_id, '_noptin_unsubscribed' );
-
-			if ( ! empty( $recipient['email'] ) ) {
-				\Hizzle\Noptin\Emails\Logs\Main::create( 'unsubscribe', $campaign_id, $recipient['email'] );
-			}
 		}
 	}
 

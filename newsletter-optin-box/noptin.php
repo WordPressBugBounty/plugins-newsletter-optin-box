@@ -11,7 +11,7 @@
  * Description:     A very fast and lightweight WordPress newsletter plugin
  * Author:          Noptin Newsletter
  * Author URI:      https://github.com/picocodes
- * Version:         4.0.6
+ * Version:         4.1.6
  * Text Domain:     newsletter-optin-box
  * License:         GPLv3
  * License URI:     http://www.gnu.org/licenses/gpl-3.0.txt
@@ -46,7 +46,7 @@ class Noptin {
 	 * @var   string Plugin version
 	 * @since 1.0.0
 	 */
-	public $version = '4.0.6';
+	public $version = '4.1.6';
 
 	/**
 	 * The current database version.
@@ -245,7 +245,6 @@ class Noptin {
 		require_once $plugin_path . 'includes/subscriber.php';
 		require_once $plugin_path . 'includes/emails/class-manager.php';
 		require_once $plugin_path . 'includes/libraries/noptin-com/class-noptin-com.php';
-
 	}
 
 	/**
@@ -291,9 +290,6 @@ class Noptin {
 		// DB.
 		$this->db();
 
-		// Bulk email sender.
-		$this->bulk_emails();
-
 		if ( empty( $this->white_label ) ) {
 			$this->white_label = new Noptin_White_Label();
 		}
@@ -302,7 +298,7 @@ class Noptin {
 		Noptin_Scripts::init();
 
 		// Users.
-		add_action( 'after_setup_theme', '\Hizzle\Noptin\Objects\Users::add_default' );
+		add_action( 'noptin_init', '\Hizzle\Noptin\Objects\Users::add_default', 1 );
 
 		// Init the plugin after WP inits
 		add_action( 'init', array( $this, 'init' ), 5 );
@@ -444,15 +440,6 @@ class Noptin {
      */
 	public function db() {
 		return \Hizzle\Noptin\DB\Main::instance();
-	}
-
-	/**
-	 * Bulk email sender.
-	 *
-	 * @return \Hizzle\Noptin\Bulk_Emails\Main
-	 */
-	public function bulk_emails() {
-		return \Hizzle\Noptin\Bulk_Emails\Main::instance();
 	}
 
 	/**

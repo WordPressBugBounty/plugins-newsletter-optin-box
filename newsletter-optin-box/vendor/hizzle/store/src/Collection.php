@@ -83,6 +83,20 @@ class Collection {
 	protected $props = array();
 
 	/**
+	 * A list of hidden props.
+	 *
+	 * @var string[]
+	 */
+	public $hidden = array( 'id' );
+
+	/**
+	 * A list of props to ignore.
+	 *
+	 * @var string[]
+	 */
+	public $ignore = array();
+
+	/**
 	 * Known fields.
 	 *
 	 * @since 1.0.0
@@ -131,6 +145,23 @@ class Collection {
 	 * @var array
 	 */
 	public $settings = array();
+
+	/**
+	 * Join configurations for related collections.
+	 *
+	 * Example:
+	 * array(
+	 *     'payments' => array(
+	 *         'collection' => 'store_namespace_payments',
+	 *         'on' => 'customer_id',
+	 *         'foreign_key' => 'id',
+	 *         'type' => 'LEFT' // Optional, defaults to 'INNER'
+	 *     )
+	 * )
+	 *
+	 * @var array
+	 */
+	public $joins = array();
 
 	/**
 	 * A list of class instances
@@ -594,7 +625,7 @@ class Collection {
 			'type'              => 'integer',
 			'default'           => 25,
 			'minimum'           => -1,
-			'maximum'           => 100,
+			'maximum'           => 1000,
 			'sanitize_callback' => __CLASS__ . '::intval',
 			'validate_callback' => 'rest_validate_request_arg',
 		);
@@ -670,6 +701,18 @@ class Collection {
 			'enum'              => array_merge( $all_fields['main'], $all_fields['post'], array( 'id', 'include' ) ),
 			'validate_callback' => 'rest_validate_request_arg',
 		);
+
+		// Add join parameter if joins are configured.
+		if ( ! empty( $this->joins ) ) {
+			$query_schema['join'] = array(
+				'description'       => __( 'Join aliases to include in the query. If not specified, no joins will be included.', 'hizzle-store' ),
+				'type'              => array( 'string', 'array' ),
+				'items'             => array(
+					'type' => 'string',
+				),
+				'validate_callback' => 'rest_validate_request_arg',
+			);
+		}
 
 		$this->query_schema = apply_filters( $this->hook_prefix( 'query_schema' ), $query_schema, $this );
 		return $this->query_schema;
@@ -781,6 +824,8 @@ class Collection {
 
 		foreach ( $data as $key => $value ) {
 
+			$type = strtolower( $this->props[ $key ]->type ?? '' );
+
 			// Handle boolean values.
 			if ( is_bool( $value ) ) {
 				$value = (int) $value;
@@ -792,6 +837,13 @@ class Collection {
 					$value = $value->utc( 'Y-m-d' );
 				} else {
 					$value = $value->utc();
+				}
+			} elseif ( is_string( $value ) && $value && ( 'date' === $type || 'datetime' === $type ) ) {
+				$datetime = new Date_Time( $value, new \DateTimeZone( 'UTC' ) );
+				if ( 'date' === $type ) {
+					$value = $datetime->utc( 'Y-m-d' );
+				} else {
+					$value = $datetime->utc();
 				}
 			}
 
@@ -926,7 +978,7 @@ class Collection {
 			);
 
 			if ( empty( $result ) && ! empty( $wpdb->last_error ) ) {
-				noptin_error_log( 'Error creating record: ' . $wpdb->last_error );
+				error_log( 'Error creating record: ' . $wpdb->last_error );
 			}
 
 			return $result ? $wpdb->insert_id : 0;
@@ -1077,9 +1129,9 @@ class Collection {
 		// Format the raw data.
 		foreach ( $this->props as $prop ) {
 
-			// Dates are stored in UTC time, but without a timezone.
+			// Date and times are stored in UTC time, but without a timezone.
 			// Fix that.
-			if ( $prop->is_date() && ! empty( $data[ $prop->name ] ) ) {
+			if ( $prop->is_date_time() && ! empty( $data[ $prop->name ] ) ) {
 				$data[ $prop->name ] = new Date_Time( $data[ $prop->name ], new \DateTimeZone( 'UTC' ) );
 			}
 		}

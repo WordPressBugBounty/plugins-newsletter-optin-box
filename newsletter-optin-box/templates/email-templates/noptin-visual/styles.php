@@ -106,10 +106,10 @@
 	.noptin-button-link__wrapper {
 		background-color: <?php echo esc_attr( $settings['button_background'] ); ?>;
 		color: <?php echo esc_attr( $settings['button_color'] ); ?>;
-		padding-top: 10px;
-		padding-right: 25px;
-		padding-bottom: 10px;
-		padding-left: 25px;
+		padding-top: 16px;
+		padding-right: 40px;
+		padding-bottom: 16px;
+		padding-left: 40px;
 	}
 
 	table.noptin-button-block__wrapper {
@@ -141,35 +141,83 @@
 	}
 
 	.wp-block-noptin-table table,
-	.wp-block-noptin-table td {
+	.wp-block-noptin-table td,
+	.wp-block-noptin-advanced-table > table,
+	.wp-block-noptin-table-content-row > td {
 		border-collapse: collapse;
+	}
+
+	.wp-block-noptin-advanced-table {
+		max-width: 100%;
+		overflow: auto;
+		box-sizing: border-box;
+		text-align: <?php echo is_rtl() ? 'right' : 'left'; ?>;
+	}
+	.wp-block-noptin-advanced-table > table {
+		width: 100%;
+	}
+
+	tfoot.wp-block-noptin-table-section > .wp-block-noptin-table-row > .wp-block-noptin-table-cell:first-child {
+		text-align: right;
+	}
+
+	.wp-block-noptin-table-cell {
+		border-bottom: 1px solid #ddd;
 	}
 
 	table {
 		border-collapse: separate;
 	}
 
-	p, h1, h2, h3, h4, h5, h6, .noptin-block__margin-wrapper {
+	p, h1, h2, h3, h4, h5, h6, .noptin-block__margin-wrapper, .wp-block-noptin-badge table {
 		margin-top: 0px;
 		margin-left: 10px;
 		margin-right: 10px;
 		margin-bottom: 16px;
 	}
 
-	p:first-child, 
-	h1:first-child,
-	h2:first-child,
-	h3:first-child,
-	h4:first-child, 
-	h5:first-child, 
-	h6:first-child,
-	.noptin-columns:first-child,
-	.noptin-image-block__wrapper:first-child .noptin-block__margin-wrapper {
-		margin-top: 10px;
+	.wp-block-noptin-badge {
+		letter-spacing: 1px;
 	}
 
-	.noptin-columns {
+	.wp-block-noptin-table-cell > h1:last-child,
+	.wp-block-noptin-table-cell > a:last-child > h1:last-child,
+	.wp-block-noptin-table-cell > h2:last-child,
+	.wp-block-noptin-table-cell > a:last-child > h2:last-child,
+	.wp-block-noptin-table-cell > h3:last-child,
+	.wp-block-noptin-table-cell > a:last-child > h3:last-child,
+	.wp-block-noptin-table-cell > h4:last-child,
+	.wp-block-noptin-table-cell > a:last-child > h4:last-child,
+	.wp-block-noptin-table-cell > h5:last-child,
+	.wp-block-noptin-table-cell > a:last-child > h5:last-child,
+	.wp-block-noptin-table-cell > h6:last-child,
+	.wp-block-noptin-table-cell > a:last-child > h6:last-child,
+	p:last-child,
+	.noptin-columns:last-child,
+	.wp-block-noptin-badge:last-child table,
+	.noptin-image-block__wrapper:last-child .noptin-block__margin-wrapper {
+		margin-bottom: 0px;
+	}
+
+	/** Backward compatibility */
+	/** Overide the above for headings inside of links */
+	.wp-block-noptin-table-cell > a:not(:last-child) h1:only-child,
+	.wp-block-noptin-table-cell > a:not(:last-child) h2:only-child,
+	.wp-block-noptin-table-cell > a:not(:last-child) h3:only-child,
+	.wp-block-noptin-table-cell > a:not(:last-child) h4:only-child,
+	.wp-block-noptin-table-cell > a:not(:last-child) h5:only-child,
+	.wp-block-noptin-table-cell > a:not(:last-child) h6:only-child {
 		margin-bottom: 16px;
+	}
+
+	.noptin-records__wrapper,
+	.noptin-columns,
+	.wp-block-noptin-separator {
+		margin-bottom: 16px;
+	}
+
+	.wp-block-noptin-separator {
+		border: 0;
 	}
 
 	.noptin-column__inner > .noptin-image-block__wrapper:first-child .noptin-block__margin-wrapper {
@@ -184,11 +232,6 @@
 
 	.noptin-column__inner img {
 		width: 100%;
-	}
-
-	.noptin-records__wrapper,
-	.wp-block-noptin-separator {
-		margin-bottom: 16px;
 	}
 
 	h1, h2, h3, h4, h5, h6 {
@@ -234,20 +277,34 @@
 		max-width: 100%;
 	}
 
-	.wp-block-noptin-group {
-		margin-bottom: 20px;
+	.wp-block-noptin-group:first-child {
+		margin-top: 20px;
 	}
 
-	.noptin-block-group__inner {
-		overflow: hidden;
+	.wp-block-noptin-group:last-child {
+		margin-bottom: 20px;
 	}
 
 	.wp-block-noptin-group > table {
 		overflow: hidden;
 	}
 
-	.wp-block-noptin-group:first-child {
-		margin-top: 20px;
+	.noptin-block-group__inner > table > tbody > tr > td {
+		padding-top: 50px;
+		padding-right: 30px;
+		padding-bottom: 50px;
+		padding-left: 30px;
+	}
+
+	.noptin-block-group__inner > table > tbody > tr > td .noptin-block-group__inner > table > tbody > tr > td {
+		padding-top: 10px;
+		padding-right: 10px;
+		padding-bottom: 10px;
+		padding-left: 10px;
+	}
+
+	.noptin-block-group__inner {
+		overflow: hidden;
 	}
 
 	.noptin-record {
@@ -303,16 +360,6 @@
 		p {
 			word-break: break-word;
 		}
-	}
-
-	.wp-block-noptin-table-cell {
-		min-width: 100px;
-		padding: 0.5em;
-		border-bottom: 1px solid #ddd;
-	}
-
-	.wp-block-noptin-table-cell > * {
-		margin: 0;
 	}
 
 	.wp-block-noptin-coupon-code {

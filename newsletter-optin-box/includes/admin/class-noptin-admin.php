@@ -146,13 +146,20 @@ class Noptin_Admin {
 		}
 
 		if ( ! empty( $_REQUEST['noptin_admin_action'] ) ) {
-			do_action( trim( $_REQUEST['noptin_admin_action'] ), $this );
+			do_action( trim( sanitize_text_field( wp_unslash( $_REQUEST['noptin_admin_action'] ) ) ), $this );
 		}
 
 		// Review nag.
 		if ( isset( $_GET['noptin_review_nag'] ) && isset( $_GET['noptin-review-nag-nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['noptin-review-nag-nonce'] ) ), 'noptin-review-nag' ) ) {
 			update_option( 'noptin_review_nag', (int) $_GET['noptin_review_nag'] );
 			wp_safe_redirect( remove_query_arg( array( 'noptin_review_nag', 'noptin-review-nag-nonce' ) ) );
+			exit;
+		}
+
+		// Black Friday notice dismissal.
+		if ( isset( $_GET['noptin_black_friday_dismissed'] ) && isset( $_GET['noptin-black-friday-nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['noptin-black-friday-nonce'] ) ), 'noptin-black-friday-nag' ) ) {
+			update_option( 'noptin_black_friday_dismissed', (int) $_GET['noptin_black_friday_dismissed'] );
+			wp_safe_redirect( remove_query_arg( array( 'noptin_black_friday_dismissed', 'noptin-black-friday-nonce' ) ) );
 			exit;
 		}
 
@@ -166,7 +173,7 @@ class Noptin_Admin {
 				update_option( '_noptin_has_welcomed', '1' );
 
 				// Redirect to the welcome page.
-				wp_safe_redirect( add_query_arg( array( 'page' => 'noptin-settings' ), admin_url( 'admin.php' ) ) );
+				wp_safe_redirect( add_query_arg( array( 'page' => 'noptin-setup-wizard' ), admin_url( 'admin.php' ) ) );
 				exit;
 			}
 		}
@@ -288,7 +295,33 @@ class Noptin_Admin {
 
 			// If user has been using Noptin for a while, show them a notice to rate the plugin.
 			$review_nag = get_option( 'noptin_review_nag', time() + WEEK_IN_SECONDS );
-			if ( ! empty( $review_nag ) && (int) $review_nag < time() ) {
+
+			// Black Friday promotion dismissed.
+			$black_friday_dismissed = get_option( 'noptin_black_friday_dismissed', 0 );
+
+			// Show notice.
+			if ( noptin_should_show_black_friday_sale_notice() && $black_friday_dismissed < time() && ! noptin_has_alk() ) {
+				$dismiss_url = wp_nonce_url( add_query_arg( 'noptin_black_friday_dismissed', time() + MONTH_IN_SECONDS ), 'noptin-black-friday-nag', 'noptin-black-friday-nonce' );
+				$this->print_notice(
+					'info',
+					sprintf(
+						'<p><strong>%s</strong></p><p>%s</p><p>%s&nbsp;&nbsp;%s</p>',
+						'Black Friday Sale!',
+						'Upgrade to <strong>Noptin Premium</strong> and save up to 40% on all plans. Limited time offer!',
+						sprintf(
+							'<a href="%s" target="_blank" class="button button-primary">%s</a>',
+							noptin_get_upsell_url( 'black-friday-sale/', 'black-friday', 'black-friday-notice' ),
+							__( 'Get the Deal', 'newsletter-optin-box' )
+						),
+						sprintf(
+							'<a href="%s" class="button button-link">%s</a>',
+							$dismiss_url,
+							__( 'Dismiss', 'newsletter-optin-box' )
+						)
+					),
+					$dismiss_url
+				);
+			} elseif ( ! empty( $review_nag ) && (int) $review_nag < time() ) {
 				$this->print_notice(
 					'info',
 					sprintf(
@@ -381,7 +414,7 @@ class Noptin_Admin {
 		}
 
 		// Verify nonces to prevent CSRF attacks.
-		if ( ! wp_verify_nonce( $_GET['_wpnonce'], 'noptin-reset-data' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'noptin-reset-data' ) ) {
 			return;
 		}
 

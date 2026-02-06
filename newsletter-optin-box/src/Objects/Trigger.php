@@ -78,6 +78,10 @@ class Trigger extends \Noptin_Abstract_Trigger {
 			$this->alias = $trigger_args['previous_name'];
 		}
 
+		if ( ! empty( $trigger_args['featured'] ) ) {
+			$this->featured = $trigger_args['featured'];
+		}
+
 		add_action( 'noptin_fire_object_trigger_' . $this->trigger_id, array( $this, 'fire_trigger' ) );
 	}
 
@@ -255,6 +259,39 @@ class Trigger extends \Noptin_Abstract_Trigger {
 	}
 
 	/**
+	 * Checks if the rule is valid for the given args.
+	 *
+	 * @since 1.2.8
+	 * @param \Hizzle\Noptin\Automation_Rules\Automation_Rule $rule The rule to check for.
+	 * @param mixed $args Extra args for the action.
+	 * @param mixed $subject The subject.
+	 * @param Noptin_Abstract_Action $action The action to run.
+	 * @return bool
+	 */
+	public function is_rule_valid_for_args( $rule, $args, $subject, $action ) {
+
+		$settings = $rule->get_trigger_settings();
+
+		if ( ! empty( $this->trigger_args['extra_settings'] ) ) {
+			foreach ( $this->trigger_args['extra_settings'] as $key => $setting ) {
+				// If required but not set...
+				if ( ! empty( $setting['required'] ) && ( ! isset( $settings[ $key ] ) || '' === $settings[ $key ] ) ) {
+					log_noptin_message(
+                        sprintf(
+                            'Error: "%s" not specified. Skipping rule.',
+                            $setting['label']
+                        )
+                    );
+
+					return false;
+				}
+			}
+		}
+
+		return parent::is_rule_valid_for_args( $rule, $args, $subject, $action );
+	}
+
+	/**
 	 * @inheritdoc
 	 */
 	public function get_rule_table_description( $rule ) {
@@ -292,7 +329,7 @@ class Trigger extends \Noptin_Abstract_Trigger {
 			}
 		}
 
-		return $this->rule_trigger_meta( $meta, $rule ) . parent::get_rule_table_description( $rule );
+		return parent::get_rule_table_description( $rule ) . $this->rule_trigger_meta( $meta, $rule );
 	}
 
 	/**

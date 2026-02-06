@@ -567,18 +567,13 @@ class Form {
 		}
 
 		// Always show if we're previewing the form.
-		if ( defined( 'IS_NOPTIN_PREVIEW' ) && $this->id === IS_NOPTIN_PREVIEW ) {
+		if ( defined( 'IS_NOPTIN_PREVIEW' ) && IS_NOPTIN_PREVIEW === $this->id ) {
 			return true;
 		}
 
 		// Abort if the form is not published, unless we're on a preview.
 		if ( ! noptin_is_preview() && ! $this->is_published() ) {
 			return false;
-		}
-
-		// Always display click triggered popups.
-		if ( 'popup' === $this->optinType && 'after_click' === $this->triggerPopup ) {
-			return true;
 		}
 
 		// ... or the user wants to hide all forms.
@@ -758,7 +753,8 @@ class Form {
 	 * Checks if we can embed this form to the current post/page.
 	 */
 	public function can_embed() {
-		return apply_filters( 'noptin_can_embed_form', 'inpost' === $this->optinType && $this->can_show(), $this );
+		$can_embed = 'inpost' === $this->optinType && in_array( $this->inject, array( 'before', 'after', 'both' ), true );
+		return apply_filters( 'noptin_can_embed_form', $can_embed && $this->can_show(), $this );
 	}
 
 	/**

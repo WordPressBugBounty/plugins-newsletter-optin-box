@@ -180,6 +180,31 @@ class Subscriber extends \Hizzle\Store\Record {
 	}
 
 	/**
+	 * Gets the subscriber's formatted conversion page.
+	 *
+	 * @return string
+	 */
+	public function get_formatted_conversion_page( $context = 'view' ) {
+		$url = $this->get_conversion_page( $context );
+
+		if ( empty( $url ) ) {
+			return '';
+		}
+
+		$text = str_replace( array( home_url(), 'https://', 'http://' ), '', $url );
+		if ( strlen( $text ) > 15 ) {
+			$text = substr( $text, 0, 15 ) . '...';
+		}
+
+		return sprintf(
+			'<a href="%s" title="%s" target="_blank">%s</a>',
+			esc_url( $url ),
+			esc_attr( $url ),
+			esc_html( $text )
+		);
+	}
+
+	/**
 	 * Gets the subscriber conversion page.
 	 *
 	 * @return string
@@ -335,55 +360,9 @@ class Subscriber extends \Hizzle\Store\Record {
 	}
 
 	/**
-	 * Fetches the subscriber's sent email campaigns.
-	 *
-	 * @param string $context What the value is for. Valid values are 'view' and 'edit'.
-	 * @return array
-	 */
-	public function get_sent_campaigns( $context = 'view' ) {
-		$sent_campaigns = $this->get_prop( 'sent_campaigns', $context );
-
-		if ( is_string( $sent_campaigns ) ) {
-			$sent_campaigns = json_decode( $sent_campaigns, true );
-		}
-
-		return is_array( $sent_campaigns ) ? $sent_campaigns : array();
-	}
-
-	/**
-	 * Sets the subscriber's sent email campaigns.
-	 *
-	 *  @param array|string $sent_campaigns Sent email campaigns.
-	 */
-	public function set_sent_campaigns( $sent_campaigns ) {
-		$sent_campaigns = empty( $sent_campaigns ) ? array() : maybe_unserialize( $sent_campaigns );
-		$sent_campaigns = is_array( $sent_campaigns ) ? wp_json_encode( $sent_campaigns ) : $sent_campaigns;
-		$this->set_prop( 'sent_campaigns', $sent_campaigns );
-	}
-
-	/**
 	 * Records a subscriber's sent email campaign.
-	 *
-	 * @param int $campaign_id Campaign ID.
 	 */
-	public function record_sent_campaign( $campaign_id ) {
-		$campaign_id    = (string) $campaign_id;
-		$sent_campaigns = $this->get_sent_campaigns();
-
-		if ( ! isset( $sent_campaigns[ $campaign_id ] ) ) {
-			$sent_campaigns[ $campaign_id ] = array(
-				'time'         => array( time() ),
-				'opens'        => array(),
-				'clicks'       => array(),
-				'unsubscribed' => false,
-				'bounced'      => false,
-				'complained'   => false,
-			);
-		} else {
-			$sent_campaigns[ $campaign_id ]['time'][] = time();
-		}
-
-		$this->set_sent_campaigns( $sent_campaigns );
+	public function record_sent_campaign() {
 		$this->set( 'total_emails_sent', ( (int) $this->get( 'total_emails_sent' ) ) + 1 );
 		$this->set( 'last_email_sent_date', time() );
 		$this->set( 'email_engagement_score', $this->calculate_engagement_score() );
@@ -396,34 +375,18 @@ class Subscriber extends \Hizzle\Store\Record {
 	 * @param int $campaign_id Campaign ID.
 	 */
 	public function record_opened_campaign( $campaign_id ) {
-		$campaign_id    = (string) $campaign_id;
-		$sent_campaigns = $this->get_sent_campaigns();
-
 		$this->set( 'total_emails_opened', ( (int) $this->get( 'total_emails_opened' ) ) + 1 );
 		$this->set( 'last_email_opened_date', time() );
 		$this->set( 'email_engagement_score', $this->calculate_engagement_score() );
 		$this->save();
 
-		if ( isset( $sent_campaigns[ $campaign_id ] ) ) {
-
-			// Record activity.
-			$this->record_activity(
-				sprintf(
-					// translators: %s is the campaign name.
-					__( 'Opened email campaign %s', 'newsletter-optin-box' ),
-					'<code>' . get_the_title( $campaign_id ) . '</code>'
-				)
-			);
-
-			$sent_campaigns[ $campaign_id ]['opens'][] = time();
-			$this->set_sent_campaigns( $sent_campaigns );
-			$this->save();
+		// We only want to record opens once per campaign.
+		if ( ! \Hizzle\Noptin\Emails\Logs\Main::did_activity( 'open', $campaign_id, $this->get_email() ) ) {
+			// Increment total opens for the campaign.
+			increment_noptin_campaign_stat( $campaign_id, '_noptin_opens' );
 
 			// Fire action.
-			if ( 1 === count( $sent_campaigns[ $campaign_id ]['opens'] ) ) {
-				do_action( 'log_noptin_subscriber_campaign_open', $this->get_id(), $campaign_id );
-				increment_noptin_campaign_stat( $campaign_id, '_noptin_opens' );
-			}
+			do_action( 'log_noptin_subscriber_campaign_open', $this->get_id(), $campaign_id );
 		}
 	}
 
@@ -434,40 +397,18 @@ class Subscriber extends \Hizzle\Store\Record {
 	 * @param string $url URL.
 	 */
 	public function record_clicked_link( $campaign_id, $url ) {
-		$campaign_id    = (string) $campaign_id;
-		$sent_campaigns = $this->get_sent_campaigns();
-
 		$this->set( 'total_links_clicked', ( (int) $this->get( 'total_links_clicked' ) ) + 1 );
 		$this->set( 'last_email_clicked_date', time() );
 		$this->set( 'email_engagement_score', $this->calculate_engagement_score() );
 		$this->save();
 
-		if ( isset( $sent_campaigns[ $campaign_id ] ) ) {
-
-			// Record activity.
-			$this->record_activity(
-				sprintf(
-					// translators: %2 is the campaign name, #1 is the link.
-					__( 'Clicked on %1$s from campaign %2$s', 'newsletter-optin-box' ),
-					'<code>' . esc_url( $url ) . '</code>',
-					'<code>' . get_the_title( $campaign_id ) . '</code>'
-				)
-			);
-
-			if ( ! isset( $sent_campaigns[ $campaign_id ]['clicks'][ $url ] ) ) {
-				$sent_campaigns[ $campaign_id ]['clicks'][ $url ] = array();
-			}
-
-			$sent_campaigns[ $campaign_id ]['clicks'][ $url ][] = time();
-
-			$this->set_sent_campaigns( $sent_campaigns );
-			$this->save();
+		// We only want to record clicks once per campaign.
+		if ( ! \Hizzle\Noptin\Emails\Logs\Main::did_activity( 'click', $campaign_id, $this->get_email() ) ) {
+			// Increment total clicks for the campaign.
+			increment_noptin_campaign_stat( $campaign_id, '_noptin_clicks' );
 
 			// Fire action.
-			if ( 1 === count( $sent_campaigns[ $campaign_id ]['clicks'][ $url ] ) ) {
-				do_action( 'log_noptin_subscriber_campaign_click', $this->get_id(), $campaign_id, $url );
-				increment_noptin_campaign_stat( $campaign_id, '_noptin_clicks' );
-			}
+			do_action( 'log_noptin_subscriber_campaign_click', $this->get_id(), $campaign_id, $url );
 		}
 	}
 
@@ -477,14 +418,7 @@ class Subscriber extends \Hizzle\Store\Record {
 	 * @param int $campaign_id Campaign ID.
 	 */
 	public function record_unsubscribed_campaign( $campaign_id ) {
-		$campaign_id    = (string) $campaign_id;
-		$sent_campaigns = $this->get_sent_campaigns();
-
-		if ( isset( $sent_campaigns[ $campaign_id ] ) ) {
-			$sent_campaigns[ $campaign_id ]['unsubscribed'] = true;
-			$this->set_sent_campaigns( $sent_campaigns );
-			$this->save();
-		}
+		$this->log_activity( 'unsubscribe', $campaign_id );
 	}
 
 	/**
@@ -493,14 +427,7 @@ class Subscriber extends \Hizzle\Store\Record {
 	 * @param int $campaign_id Campaign ID.
 	 */
 	public function record_bounced_campaign( $campaign_id ) {
-		$campaign_id    = (string) $campaign_id;
-		$sent_campaigns = $this->get_sent_campaigns();
-
-		if ( isset( $sent_campaigns[ $campaign_id ] ) ) {
-			$sent_campaigns[ $campaign_id ]['bounced'] = true;
-			$this->set_sent_campaigns( $sent_campaigns );
-			$this->save();
-		}
+		$this->log_activity( 'bounce', $campaign_id );
 	}
 
 	/**
@@ -509,14 +436,27 @@ class Subscriber extends \Hizzle\Store\Record {
 	 * @param int $campaign_id Campaign ID.
 	 */
 	public function record_complained_campaign( $campaign_id ) {
-		$campaign_id    = (string) $campaign_id;
-		$sent_campaigns = $this->get_sent_campaigns();
+		$this->log_activity( 'complain', $campaign_id );
+	}
 
-		if ( isset( $sent_campaigns[ $campaign_id ] ) ) {
-			$sent_campaigns[ $campaign_id ]['complained'] = true;
-			$this->set_sent_campaigns( $sent_campaigns );
-			$this->save();
-		}
+	/**
+	 * Logs an email activity for the subscriber.
+	 *
+	 * @param string $activity The activity type.
+	 * @param int $campaign_id The campaign ID.
+	 * @param string $activity_info Additional information.
+	 * @param array $meta Additional metadata.
+	 * @see \Hizzle\Noptin\Emails\Logs\Main::init()
+	 */
+	public function log_activity( $activity, $campaign_id = null, $activity_info = null, $meta = array() ) {
+		do_action(
+			'noptin_log_activity',
+			$activity,
+			$campaign_id,
+			$this->get_email(),
+			$activity_info,
+			$meta
+		);
 	}
 
 	/**
@@ -733,20 +673,9 @@ class Subscriber extends \Hizzle\Store\Record {
 	 * @return array
 	 */
 	public function get_overview() {
-		$sent_emails = $this->get_sent_campaigns();
-		$total       = count( $sent_emails );
-		$opens       = 0;
-		$clicks      = 0;
-
-		foreach ( $sent_emails as $email ) {
-			if ( ! empty( $email['opens'] ) ) {
-				++$opens;
-			}
-
-			if ( ! empty( $email['clicks'] ) ) {
-				++$clicks;
-			}
-		}
+		$total  = (int) $this->get( 'total_emails_sent' );
+		$opens  = (int) $this->get( 'total_emails_opened' );
+		$clicks = (int) $this->get( 'total_links_clicked' );
 
 		$overview = array(
 			'stat_cards' => array(

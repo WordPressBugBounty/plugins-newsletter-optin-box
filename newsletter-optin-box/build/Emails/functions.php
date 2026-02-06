@@ -570,7 +570,11 @@ function noptin_email_wrap_blocks( $blocks, $footer_text = '', $heading_text = '
 		$blocks      = '<!-- wp:heading { "anchor":"heading-text","placeholder":"' . $placeholder . '"--> <h2 class="wp-block-heading heading-text">' . $heading_text . '</h2> <!-- /wp:heading -->' . $blocks;
 	}
 
-	return '<!-- wp:noptin/group {"anchor":"main-content-wrapper","style":{"noptin":{"align":"center","color":{"background":"#ffffff"}}}} --> <div class="wp-block-noptin-group main-content-wrapper"><table width="600px" align="center" cellpadding="0" cellspacing="0" role="presentation" style="width:600px;max-width:100%;border-collapse:separate;background-color:#ffffff"><tbody><tr><td class="noptin-block-group__inner" align="center"><table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody><tr><td style="background-color:#ffffff">' . $blocks . '</td></tr></tbody></table></td></tr></tbody></table></div> <!-- /wp:noptin/group --> <!-- wp:noptin/group {"anchor":"main-footer-wrapper","style":{"noptin":{"align":"center","color":{"background":""}}}} --> <div class="wp-block-noptin-group main-footer-wrapper"><table width="600px" align="center" cellpadding="0" cellspacing="0" role="presentation" style="width:600px;max-width:100%;border-collapse:separate"><tbody><tr><td class="noptin-block-group__inner" align="center"><table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody><tr><td>' . $footer . '</td></tr></tbody></table></td></tr></tbody></table></div> <!-- /wp:noptin/group -->';
+	return sprintf(
+		'%s %s',
+		noptin_email_wrap_group_block( $blocks ),
+		noptin_email_wrap_group_block( $footer, '' )
+	);
 }
 
 /**
@@ -584,11 +588,47 @@ function noptin_email_wrap_paragraph_block( $content = '' ) {
 }
 
 /**
+ * Wraps a group block.
+ */
+function noptin_email_wrap_group_block( $content = '', $background_color = '#ffffff' ) {
+	ob_start();
+	?>
+<!-- wp:noptin/group {"style":{"noptin":{"align":"center","color":{"background":"<?php echo esc_attr( $background_color ); ?>"}},"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}}}} -->
+<div class="wp-block-noptin-group">
+	<!--[if true]>
+	
+		<table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:600px;max-width:100%;">
+			<tbody>
+				<tr>
+					<td class="noptin-block-group__inner" align="center">
+	
+	<![endif]-->
+	<!--[if !true]><!--><div class="noptin-block-group__inner" style="width:100%;max-width:600px;margin-left:auto;margin-right:auto;margin-top:0;margin-bottom:0"><!--<![endif]--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tbody><tr><td style="padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px<?php echo empty( $background_color ) ? '' : ';background-color:' . esc_attr( $background_color ); ?>">{{CONTENT}}</td></tr></tbody></table><!--[if !true]><!--></div><!--<![endif]-->
+	<!--[if true]>
+	
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	<![endif]-->
+	</div>
+<!-- /wp:noptin/group -->
+	<?php
+
+	return str_replace( '{{CONTENT}}', $content, ob_get_clean() );
+}
+
+/**
  * Returns an array of email recipients.
  *
  * @return array
  */
 function noptin_prepare_email_recipients( $unprepared ) {
+
+	// Some people errorneously use semicolons instead of commas.
+	if ( is_string( $unprepared ) ) {
+		$unprepared = str_replace( ';', ',', $unprepared );
+	}
 
 	$recipients = array();
 
@@ -612,7 +652,12 @@ function noptin_prepare_email_recipients( $unprepared ) {
  * @param string $reason
  * @since 3.0.0
  */
-function noptin_pause_email_campaign( $campaign_id, $reason = '' ) {
+function noptin_pause_email_campaign( $campaign_id, $reason = '', $pause_for = HOUR_IN_SECONDS ) {
+	// Skip if not published.
+	if ( 'publish' !== get_post_status( $campaign_id ) ) {
+		return;
+	}
+
 	update_post_meta( $campaign_id, 'paused', 1 );
 
 	if ( ! empty( $reason ) ) {
@@ -621,7 +666,9 @@ function noptin_pause_email_campaign( $campaign_id, $reason = '' ) {
 		delete_post_meta( $campaign_id, '_bulk_email_last_error' );
 	}
 
-	schedule_noptin_background_action( time() + HOUR_IN_SECONDS, 'noptin_resume_email_campaign', $campaign_id );
+	if ( ! empty( $pause_for ) ) {
+		schedule_noptin_background_action( time() + $pause_for, 'noptin_resume_email_campaign', $campaign_id );
+	}
 }
 
 /**
@@ -633,6 +680,9 @@ function noptin_pause_email_campaign( $campaign_id, $reason = '' ) {
 function noptin_resume_email_campaign( $campaign_id ) {
 	delete_post_meta( $campaign_id, 'paused' );
 	delete_post_meta( $campaign_id, '_bulk_email_last_error' );
+	delete_noptin_background_action( 'noptin_resume_email_campaign', $campaign_id );
+
+	do_action( 'noptin_email_campaign_resumed', $campaign_id );
 }
 add_action( 'noptin_resume_email_campaign', 'noptin_resume_email_campaign' );
 
@@ -647,52 +697,117 @@ function noptin_supports_ecommerce_tracking() {
 }
 
 /**
- * Returns the last email id that referred the current user.
- *
- * @since 3.2.0
- * @return int
- */
-function noptin_get_referring_email_id() {
-	return \Hizzle\Noptin\Emails\Revenue::get_referring_email_id();
-}
-
-/**
- * Attributes a referring email id to the provided email address.
- *
- * @since 3.2.0
- * @param int $campaign_id
- */
-function noptin_attribute_revenue_by_email_address( $email_address ) {
-	\Hizzle\Noptin\Emails\Revenue::save_by_email_address( $email_address );
-}
-
-/**
  * Records an ecommerce purchase.
  *
  * @since 3.0.0
- * @param float $amount
+ * @param array $args {
+ *     The purchase arguments.
+ *
+ *     @type float       $total           The purchase amount.
+ *     @type string|null $email           The purchaser’s email address.
+ *     @type string      $formatted_total The formatted amount.
+ *     @type int         $order_id        The order ID.
+ * }
+ * @return void
  */
-function noptin_record_ecommerce_purchase( $amount, $email_address = null ) {
-	// Abort if empty.
-	if ( empty( $amount ) ) {
+function noptin_record_ecommerce_purchase( $args ) {
+	// Skip if ecommerce tracking is disabled...
+	if ( ! get_noptin_option( 'enable_ecommerce_tracking', true ) || ! is_array( $args ) ) {
+		return;
+	}
+
+	// ... or the order id has already been recorded.
+	if ( noptin_order_id_recorded( $args['order_id'] ?? 0 ) ) {
+		return;
+	}
+
+	// Prepare the amount.
+	if ( ! is_numeric( $args['total'] ?? null ) || empty( $args['total'] ) ) {
+		return;
+	}
+
+	$amount = floatval( $args['total'] );
+
+	// Prepare the email address.
+	if ( ! is_string( $args['email'] ?? null ) || ! is_email( $args['email'] ) ) {
+		return;
+	}
+
+	$email_address = sanitize_email( $args['email'] );
+
+	// Fetch the related campaign id ( one clicked either last 30 days or since last purchase ).
+	$date_since = \Hizzle\Noptin\Emails\Logs\Main::query(
+		array(
+			'activity'           => 'purchase',
+			'email'              => $email_address,
+			'date_created_after' => '-30 days',
+			'orderby'            => 'date_created',
+			'order'              => 'DESC',
+			'number'             => 1,
+			'fields'             => 'date_created',
+		)
+	);
+	$date_since = current( $date_since );
+
+	$campaigns = \Hizzle\Noptin\Emails\Logs\Main::query(
+		array(
+			'activity'           => 'click',
+			'email'              => $email_address,
+			'date_created_after' => ! empty( $date_since ) ? "{$date_since} UTC" : '-30 days',
+			'orderby'            => 'date_created',
+			'order'              => 'DESC',
+			'number'             => 1,
+			'fields'             => 'campaign_id',
+		)
+	);
+
+	$campaign_id = current( $campaigns );
+
+	// Log the purchase.
+	\Hizzle\Noptin\Emails\Logs\Main::create(
+		'purchase',
+		$campaign_id,
+		$email_address,
+		$args['order_id'] ?? 0,
+		array(
+			'formatted_activity_info' => is_string( $args['formatted_total'] ?? null ) ? $args['formatted_total'] : noptin_format_amount( $amount ),
+		)
+	);
+
+	// Increase campaign stats.
+	if ( empty( $campaign_id ) ) {
 		return;
 	}
 
 	$lifetime_revenue = (float) get_option( 'noptin_emails_lifetime_revenue', 0 );
 	update_option( 'noptin_emails_lifetime_revenue', $lifetime_revenue + $amount, false );
 
-	if ( noptin_has_alk() ) {
+	increment_noptin_campaign_stat( $campaign_id, '_revenue', $amount );
+}
 
-		// Backward compatibility.
-		if ( is_numeric( $email_address ) ) {
-			$campaign_id   = $email_address;
-			$email_address = null;
-		} else {
-			$campaign_id = null;
-		}
-
-		\Hizzle\Noptin\Emails\Revenue::attribute_sale( $amount, $campaign_id, $email_address );
+/**
+ * Check if a given order id has already been recorded.
+ *
+ * @since 3.0.0
+ * @param string $order_id The prefixed order id, e.g, $integration::1234.
+ * @param string $activity The activity type. Either purchase or refund.
+ * @return bool True if the order id has already been recorded.
+ */
+function noptin_order_id_recorded( $order_id, $activity = 'purchase' ) {
+	if ( empty( $order_id ) || ! noptin_has_alk() ) {
+		return true;
 	}
+
+	// Fetch the related log id.
+	$count = \Hizzle\Noptin\Emails\Logs\Main::query(
+		array(
+			'activity'      => $activity,
+			'activity_info' => $order_id,
+		),
+		'count'
+	);
+
+	return $count > 0;
 }
 
 /**
@@ -740,7 +855,7 @@ function noptin_get_email_sending_rolling_period() {
 /**
  * Returns the number of emails sent this period.
  *
- * @return int Zero if unlimited.
+ * @return int Number of emails sent this period.
  */
 function noptin_emails_sent_this_period() {
 	$args = array(
@@ -794,35 +909,14 @@ function noptin_get_next_email_send_time() {
  * Checks if an email campaign was sent to a given email address.
  *
  * @param int $campaign_id
- * @param int $email_address
+ * @param string $email_address
  * @param int|string $since
  */
 function noptin_email_campaign_sent_to( $campaign_id, $email_address, $since = false ) {
-	static $cache = array();
-
-	if ( empty( $campaign_id ) || empty( $email_address ) ) {
-		return false;
-	}
-
-	// Check cache.
-	$cache_key = $campaign_id . '-' . $email_address . '-' . ( $since ? $since : 'any' );
-	if ( isset( $cache[ $cache_key ] ) ) {
-		return $cache[ $cache_key ];
-	}
-
-	$was_send = \Hizzle\Noptin\Emails\Logs\Main::query(
-		array_filter(
-			array(
-				'email'              => $email_address,
-				'campaign_id'        => $campaign_id,
-				'activity'           => 'send',
-				'number'             => 1,
-				'date_created_after' => $since,
-			)
-		),
-		'count'
+	return \Hizzle\Noptin\Emails\Logs\Main::did_activity(
+		'send',
+		$campaign_id,
+		$email_address,
+		$since
 	);
-
-	$cache[ $cache_key ] = ! empty( $was_send );
-	return $cache[ $cache_key ];
 }

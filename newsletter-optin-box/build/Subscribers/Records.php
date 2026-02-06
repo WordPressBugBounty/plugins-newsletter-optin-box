@@ -56,8 +56,13 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			}
 		}
 
+		// Email open/click.
 		add_action( 'log_noptin_subscriber_campaign_open', array( $this, 'on_open' ), 10, 2 );
 		add_action( 'log_noptin_subscriber_campaign_click', array( $this, 'on_click' ), 10, 3 );
+
+		// Anniversary dates.
+		\Hizzle\Noptin\Automation_Rules\Anniversary_Helper::register_trigger( 'noptin_subscriber_anniversary' );
+		add_action( 'check_noptin_subscriber_anniversary', array( $this, 'check_anniversary' ) );
 
 		parent::__construct();
 	}
@@ -103,7 +108,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 		foreach ( get_noptin_subscriber_filters() as $merge_tag => $options ) {
 
 			// Skip if no options.
-			if ( empty( $options['options'] ) || in_array( $merge_tag, array( 'confirmed', 'status', 'source' ), true ) ) {
+			if ( empty( $options['options'] ) || in_array( $merge_tag, array( 'confirmed', 'source' ), true ) ) {
 				continue;
 			}
 
@@ -141,6 +146,14 @@ class Records extends \Hizzle\Noptin\Objects\People {
 					'noptin_subscriber_saved' === $state ? __( 'created or updated', 'newsletter-optin-box' ) : strtolower( $label )
 				),
 				'subject'     => 'subscriber',
+				'featured'    => in_array(
+					$state,
+					array(
+						'noptin_subscriber_status_set_to_pending',
+						'noptin_subscriber_status_set_to_subscribed',
+					),
+					true
+				),
 			);
 
 			if ( 'noptin_subscriber_status_set_to_pending' === $state ) {
@@ -226,6 +239,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 						strtolower( $field['label'] )
 					),
 					'subject'       => 'subscriber',
+					'featured'      => true,
 					'extra_args'    => array(
 						'new_value' => array(
 							'label'      => __( 'New value', 'newsletter-optin-box' ),
@@ -263,6 +277,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 						strtolower( $field['label'] )
 					),
 					'subject'       => 'subscriber',
+					'featured'      => true,
 					'extra_args'    => array(
 						'field_value' => array(
 							'label'      => __( 'New value', 'newsletter-optin-box' ),
@@ -293,6 +308,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 						strtolower( $field['label'] )
 					),
 					'subject'       => 'subscriber',
+					'featured'      => true,
 					'extra_args'    => array(
 						'field_value' => array(
 							'label'      => __( 'The removed value', 'newsletter-optin-box' ),
@@ -310,9 +326,99 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			}
 		}
 
+		$date_fields = wp_list_filter(
+			get_noptin_subscriber_smart_tags(),
+			array( 'conditional_logic' => 'date' )
+		);
+
 		return array_merge(
 			parent::get_triggers(),
 			$triggers,
+			// Anniversary.
+			array(
+				'noptin_subscriber_anniversary' => array(
+					'label'          => sprintf(
+						/* translators: %s: Object type label. */
+						__( '%s > Date Anniversary', 'newsletter-optin-box' ),
+						$this->singular_label
+					),
+					'description'    => sprintf(
+						/* translators: %s: Object type label. */
+						__( 'Triggered on the anniversary of a %s\'s date field, such as signup date, birth date, last email engagement, etc.', 'newsletter-optin-box' ),
+						strtolower( $this->singular_label )
+					),
+					'subject'        => 'subscriber',
+					'featured'       => true,
+					'extra_settings' => array(
+						'field'       => array(
+							'el'               => 'select',
+							'label'            => __( 'Date Field', 'newsletter-optin-box' ),
+							'description'      => __( 'Choose a date field to monitor for each subscriber.', 'newsletter-optin-box' ),
+							'placeholder'      => __( 'Select a date field', 'newsletter-optin-box' ),
+							'options'          => wp_list_pluck( $date_fields, 'description' ),
+							'required'         => true,
+							'disableMergeTags' => true,
+						),
+						'timing'      => array(
+							'el'               => 'select',
+							'label'            => __( 'Timing', 'newsletter-optin-box' ),
+							'options'          => array(
+								'on'     => __( 'On the exact date', 'newsletter-optin-box' ),
+								'before' => __( 'Before the date', 'newsletter-optin-box' ),
+								'after'  => __( 'After the date', 'newsletter-optin-box' ),
+							),
+							'default'          => 'on',
+							'required'         => true,
+							'disableMergeTags' => true,
+						),
+						'days_before' => array(
+							'el'               => 'input',
+							'type'             => 'number',
+							'label'            => __( 'Days', 'newsletter-optin-box' ),
+							'placeholder'      => __( 'Enter a number', 'newsletter-optin-box' ),
+							'description'      => __( 'Number of days before the date', 'newsletter-optin-box' ),
+							'customAttributes' => array(
+								'min'    => 1,
+								'step'   => 1,
+								'max'    => 366,
+								'suffix' => array( __( 'Day', 'newsletter-optin-box' ), __( 'Days', 'newsletter-optin-box' ) ),
+							),
+							'conditions'       => array(
+								array(
+									'key'   => 'timing',
+									'value' => 'before',
+								),
+							),
+							'disableMergeTags' => true,
+						),
+						'days_after'  => array(
+							'el'               => 'input',
+							'type'             => 'number',
+							'label'            => __( 'Days', 'newsletter-optin-box' ),
+							'placeholder'      => __( 'Enter a number', 'newsletter-optin-box' ),
+							'description'      => __( 'Number of days after the date', 'newsletter-optin-box' ),
+							'customAttributes' => array(
+								'min'    => 1,
+								'step'   => 1,
+								'max'    => 366,
+								'suffix' => array( __( 'Day', 'newsletter-optin-box' ), __( 'Days', 'newsletter-optin-box' ) ),
+							),
+							'conditions'       => array(
+								array(
+									'key'   => 'timing',
+									'value' => 'after',
+								),
+							),
+							'disableMergeTags' => true,
+						),
+					),
+					'icon'           => array(
+						'icon' => 'calendar',
+						'fill' => '#008000',
+					),
+				),
+			),
+			// Email interactions.
 			array(
 				'open_email' => array(
 					'label'       => sprintf(
@@ -528,6 +634,55 @@ class Records extends \Hizzle\Noptin\Objects\People {
 	}
 
 	/**
+	 * Checks for anniversary dates.
+	 *
+	 * @param \Hizzle\Noptin\Automation_Rules\Automation_Rule $rule The automation rule.
+	 */
+	public function check_anniversary( $rule ) {
+		$field       = $rule->get_trigger_setting( 'field' );
+		$timing      = $rule->get_trigger_setting( 'timing' );
+		$days_before = $rule->get_trigger_setting( 'days_before' );
+		$days_after  = $rule->get_trigger_setting( 'days_after' );
+
+		if ( empty( $field ) ) {
+			return;
+		}
+
+		if ( 'before' === $timing ) {
+			$add = 0 - ( DAY_IN_SECONDS * ( is_numeric( $days_before ) ? $days_before : 1 ) );
+		} elseif ( 'after' === $timing ) {
+			$add = DAY_IN_SECONDS * ( is_numeric( $days_after ) ? $days_after : 1 );
+		} else {
+			$add = 0;
+		}
+
+		$time = time() + $add;
+
+		/** @var \Hizzle\Noptin\Subscribers\Subscriber[] $subscribers */
+		$subscribers = noptin_get_subscribers(
+			array(
+				$field . '_query' => array(
+					'month' => gmdate( 'm', $time ),
+					'day'   => gmdate( 'd', $time ),
+				),
+			)
+		);
+
+		// Loop through the subscribers.
+		foreach ( $subscribers as $subscriber ) {
+			$this->trigger(
+				$rule->get_trigger_id(),
+				array(
+					'email'      => $subscriber->get_email(),
+					'object_id'  => $subscriber->get_id(),
+					'subject_id' => $subscriber->get_id(),
+					'rule_id'    => $rule->get_id(),
+				)
+			);
+		}
+	}
+
+	/**
 	 * Retrieves several subscribers.
 	 *
 	 * @param array $filters The available filters.
@@ -550,26 +705,19 @@ class Records extends \Hizzle\Noptin\Objects\People {
 	 * @param \Hizzle\Noptin\Emails\Email $email
 	 * @return int[] $subscribers The subscriber IDs.
 	 */
-	public function get_newsletter_recipients( $options, $email ) {
+	public function get_batched_newsletter_recipients( $options, $email, $batch_size, $offset ) {
 		// Prepare arguments.
 		$args = array(
-			'status'     => 'subscribed',
-			'number'     => -1,
-			'fields'     => 'id',
-			'meta_query' => array(
-				'relation' => 'AND',
-				array(
-					'key'     => '_campaign_' . $email->id,
-					'compare' => 'NOT EXISTS',
-				),
-			),
+			'status' => 'subscribed',
+			'offset' => $offset,
+			'number' => $batch_size,
+			'fields' => 'id',
 		);
 
 		$manual_recipients = $email->get_manual_recipients_ids();
 		if ( ! empty( $manual_recipients ) ) {
 			$args['include'] = $manual_recipients;
 		} elseif ( noptin_has_alk() ) {
-
 			if ( is_array( $options ) ) {
 
 				// Backward compatibility.
@@ -647,7 +795,6 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			);
 
 			if ( $multiple || $filter['is_multiple'] ) {
-
 				$fields[ $key ]['placeholder'] = __( 'Optional. Leave blank to send to all', 'newsletter-optin-box' );
 				$fields[ $key ]['multiple']    = 'true';
 
@@ -981,7 +1128,6 @@ class Records extends \Hizzle\Noptin\Objects\People {
 		// Custom fields.
 		if ( ! class_exists( '\Noptin\Addons_Pack\Custom_Fields\Main' ) ) {
 			foreach ( $this->subscriber_fields() as $merge_tag => $field ) {
-
 				if ( 'confirmed' === $merge_tag ) {
 					$field['label'] = __( 'Email confirmation status', 'newsletter-optin-box' );
 				}
@@ -1142,6 +1288,11 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			);
 		}
 
+		if ( 'status' === $field_name ) {
+			update_noptin_subscriber_status( $args['email'], $action_args['status'] );
+			return true;
+		}
+
 		return update_noptin_subscriber(
 			$args['email'],
 			$action_args
@@ -1159,18 +1310,14 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			return new \WP_Error( 'noptin_invalid_email', 'Invalid email address or subscriber ID.' );
 		}
 
-		$subscriber = noptin_get_subscriber( $args['email'] );
+		$field_name = str_replace( 'add_to_', '', $action_id );
 
-		if ( ! $subscriber->exists() ) {
-			return new \WP_Error( 'noptin_subscriber_not_found', 'Subscriber not found.' );
-		}
-
-		$field_name  = str_replace( 'add_to_', '', $action_id );
-		$field_value = noptin_parse_list( isset( $args[ $field_name ] ) ? $args[ $field_name ] : array(), true );
-		$existing    = noptin_parse_list( $subscriber->get( $field_name, array() ), true );
-
-		$subscriber->set( $field_name, array_unique( array_merge( $existing, $field_value ) ) );
-		$subscriber->save();
+		return update_noptin_subscriber(
+			$args['email'],
+			array(
+				$field_name . '::add' => $args[ $field_name ] ?? array(),
+			)
+		);
 	}
 
 	/**
@@ -1184,17 +1331,13 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			return new \WP_Error( 'noptin_invalid_email', 'Invalid email address or subscriber ID.' );
 		}
 
-		$subscriber = noptin_get_subscriber( $args['email'] );
+		$field_name = str_replace( 'remove_from_', '', $action_id );
 
-		if ( ! $subscriber->exists() ) {
-			return new \WP_Error( 'noptin_subscriber_not_found', 'Subscriber not found.' );
-		}
-
-		$field_name  = str_replace( 'remove_from_', '', $action_id );
-		$field_value = noptin_parse_list( isset( $args[ $field_name ] ) ? $args[ $field_name ] : array(), true );
-		$existing    = noptin_parse_list( $subscriber->get( $field_name, array() ), true );
-
-		$subscriber->set( $field_name, array_unique( array_diff( $existing, $field_value ) ) );
-		$subscriber->save();
+		return update_noptin_subscriber(
+			$args['email'],
+			array(
+				$field_name . '::remove' => $args[ $field_name ] ?? array(),
+			)
+		);
 	}
 }

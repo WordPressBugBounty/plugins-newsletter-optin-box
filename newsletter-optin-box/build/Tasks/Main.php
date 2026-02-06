@@ -47,6 +47,7 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 		add_filter( 'hizzle_rest_noptin_tasks_collection_js_params', array( __CLASS__, 'filter_tasks_collection_js_params' ) );
 		add_filter( 'hizzle_rest_noptin_tasks_record_tabs', array( __CLASS__, 'add_record_tabs' ), 1000 );
 		add_action( 'shutdown', array( __CLASS__, 'handle_unexpected_shutdown' ) );
+		add_action( 'shutdown', array( $this, 'run_overdue_tasks_on_shutdown' ), 1 );
 		add_action( 'noptin_tasks_before_execute', array( __CLASS__, 'set_task' ), 0, 1 );
 		add_action( 'noptin_tasks_after_execute', array( __CLASS__, 'reset_task' ), 0 );
 		add_action( 'noptin_tasks_failed_execution', array( __CLASS__, 'reset_task' ), 0 );
@@ -172,6 +173,19 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	 */
 	public function run_pending() {
 		wp_remote_get( $this->get_query_url(), $this->get_ajax_args() );
+	}
+
+	/**
+	 * Runs overdue tasks on shutdown via ajax.
+	 */
+	public function run_overdue_tasks_on_shutdown() {
+		if ( wp_doing_ajax() || wp_doing_cron() || $this->is_process_running() ) {
+			return;
+		}
+
+		if ( ! empty( $this->get_next_task() ) ) {
+			$this->run_pending();
+		}
 	}
 
 	/**
@@ -466,7 +480,7 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 	}
 
 	public static function delete_old_tasks() {
-		$lifespan = apply_filters( 'noptin_tasks_retention_period', MONTH_IN_SECONDS );
+		$lifespan = apply_filters( 'noptin_tasks_retention_period', 3 * MONTH_IN_SECONDS );
 
 		/** @var Task[] $tasks */
 		$tasks = self::query(
@@ -478,10 +492,7 @@ class Main extends \Hizzle\Noptin\Core\Bulk_Task_Runner {
 		);
 
 		foreach ( $tasks as $task ) {
-			// Only delete if no subject, primary id, and secondary id.
-			if ( is_null( $task->get_subject() ) && is_null( $task->get_primary_id() ) && is_null( $task->get_secondary_id() ) ) {
-				$task->delete();
-			}
+			$task->delete();
 		}
 	}
 

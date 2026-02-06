@@ -2,23 +2,23 @@
     "packages": [
         {
             "name": "hizzle/store",
-            "version": "0.2.11",
-            "version_normalized": "0.2.11.0",
+            "version": "0.2.18",
+            "version_normalized": "0.2.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hizzle-co/datastore.git",
-                "reference": "a6e17c589443de791e9bf9eb9c2536c7401f09c2"
+                "reference": "a01cea3f0018b11500c4748cbc410c2d362291c2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hizzle-co/datastore/zipball/a6e17c589443de791e9bf9eb9c2536c7401f09c2",
-                "reference": "a6e17c589443de791e9bf9eb9c2536c7401f09c2",
+                "url": "https://api.github.com/repos/hizzle-co/datastore/zipball/a01cea3f0018b11500c4748cbc410c2d362291c2",
+                "reference": "a01cea3f0018b11500c4748cbc410c2d362291c2",
                 "shasum": ""
             },
             "require": {
                 "php": ">=5.3.0"
             },
-            "time": "2025-08-20T05:32:06+00:00",
+            "time": "2026-01-26T15:11:28+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -47,29 +47,29 @@
             ],
             "support": {
                 "issues": "https://github.com/hizzle-co/datastore/issues",
-                "source": "https://github.com/hizzle-co/datastore/tree/0.2.11"
+                "source": "https://github.com/hizzle-co/datastore/tree/0.2.18"
             },
             "install-path": "../hizzle/store"
         },
         {
             "name": "hizzle/wp",
-            "version": "1.2.0",
-            "version_normalized": "1.2.0.0",
+            "version": "1.4.7",
+            "version_normalized": "1.4.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hizzle-co/hizzle.git",
-                "reference": "f54ecbbe27d06dc3602be81937c2d1df4fdda66f"
+                "reference": "ac9b0e01af756bf8ea84b2aaaabf7b5990dc82dc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hizzle-co/hizzle/zipball/f54ecbbe27d06dc3602be81937c2d1df4fdda66f",
-                "reference": "f54ecbbe27d06dc3602be81937c2d1df4fdda66f",
+                "url": "https://api.github.com/repos/hizzle-co/hizzle/zipball/ac9b0e01af756bf8ea84b2aaaabf7b5990dc82dc",
+                "reference": "ac9b0e01af756bf8ea84b2aaaabf7b5990dc82dc",
                 "shasum": ""
             },
             "require": {
                 "php": ">=5.3.0"
             },
-            "time": "2025-07-23T11:15:29+00:00",
+            "time": "2026-01-30T15:49:00+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -98,7 +98,7 @@
             ],
             "support": {
                 "issues": "https://github.com/hizzle-co/hizzle/issues",
-                "source": "https://github.com/hizzle-co/hizzle/tree/v1.2.0"
+                "source": "https://github.com/hizzle-co/hizzle/tree/v1.4.7"
             },
             "install-path": "../hizzle/wp"
         },
@@ -257,64 +257,6 @@
                 }
             ],
             "install-path": "../symfony/polyfill-php80"
-        },
-        {
-            "name": "tijsverkoyen/css-to-inline-styles",
-            "version": "v2.3.0",
-            "version_normalized": "2.3.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/tijsverkoyen/CssToInlineStyles.git",
-                "reference": "0d72ac1c00084279c1816675284073c5a337c20d"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/tijsverkoyen/CssToInlineStyles/zipball/0d72ac1c00084279c1816675284073c5a337c20d",
-                "reference": "0d72ac1c00084279c1816675284073c5a337c20d",
-                "shasum": ""
-            },
-            "require": {
-                "ext-dom": "*",
-                "ext-libxml": "*",
-                "php": "^7.4 || ^8.0",
-                "symfony/css-selector": "^5.4 || ^6.0 || ^7.0"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^2.0",
-                "phpstan/phpstan-phpunit": "^2.0",
-                "phpunit/phpunit": "^8.5.21 || ^9.5.10"
-            },
-            "time": "2024-12-21T16:25:41+00:00",
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "2.x-dev"
-                }
-            },
-            "installation-source": "dist",
-            "autoload": {
-                "psr-4": {
-                    "TijsVerkoyen\\CssToInlineStyles\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "BSD-3-Clause"
-            ],
-            "authors": [
-                {
-                    "name": "Tijs Verkoyen",
-                    "email": "css_to_inline_styles@verkoyen.eu",
-                    "role": "Developer"
-                }
-            ],
-            "description": "CssToInlineStyles is a class that enables you to convert HTML-pages/files into HTML-pages/files with inline styles. This is very useful when you're sending emails.",
-            "homepage": "https://github.com/tijsverkoyen/CssToInlineStyles",
-            "support": {
-                "issues": "https://github.com/tijsverkoyen/CssToInlineStyles/issues",
-                "source": "https://github.com/tijsverkoyen/CssToInlineStyles/tree/v2.3.0"
-            },
-            "install-path": "../tijsverkoyen/css-to-inline-styles"
         }
     ],
     "dev": true,

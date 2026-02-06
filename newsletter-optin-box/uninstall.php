@@ -9,6 +9,8 @@ global $wpdb;
 
 // Crons.
 wp_clear_scheduled_hook( 'noptin_daily_maintenance' );
+wp_clear_scheduled_hook( 'noptin_run_tasks' );
+wp_clear_scheduled_hook( 'noptin_run_tasks_health_check' );
 
 // Check if we need to delete all data.
 $noptin_options = (array) get_option( 'noptin_options', array() );
@@ -23,6 +25,8 @@ $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'noptin\_%';"
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}noptin_subscribers" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}noptin_subscriber_meta" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}noptin_automation_rules" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}noptin_tasks" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}noptin_email_logs" );
 
 // Delete newsletters.
 $wpdb->query(

@@ -238,7 +238,6 @@ class REST_Controller extends \WP_REST_Controller {
 
 		// Allow operations by other unique keys.
 		if ( ! empty( $collection->keys['unique'] ) ) {
-
 			$keys = implode( '|', $collection->keys['unique'] );
 
 			// METHODS to READ, UPDATE and DELETE a single record.
@@ -351,7 +350,16 @@ class REST_Controller extends \WP_REST_Controller {
 					'callback'            => array( $this, 'aggregate_items' ),
 					'permission_callback' => array( $this, 'get_items_permissions_check' ),
 					'args'                => array_merge(
-						$collection_params,
+						array_diff_key(
+							$collection_params,
+							array(
+								'paged'    => true,
+								'per_page' => true,
+								'offset'   => true,
+								'order'    => true,
+								'orderby'  => true,
+							)
+						),
 						array(
 							'aggregate'    => array(
 								'type'        => array( 'object' ),
@@ -606,40 +614,17 @@ class REST_Controller extends \WP_REST_Controller {
 		$total    = (int) $query->get_total();
 		$paged    = (int) $query->query_vars['page'];
 
-		$max_pages = $total > 0 && $per_page > 1 ? ceil( $total / $per_page ) : 1;
+		$max_pages = $total > 0 && $per_page > 0 ? ceil( $total / $per_page ) : 1;
 
-		if ( ! $request->get_param( '__next_as_array' ) ) {
-			$response = rest_ensure_response(
-				apply_filters(
-					$this->prefix_hook( 'get_items' ),
-					array(
-						'items'   => $items,
-						'summary' => (object) array(
-							'total' => array(
-								'label' => $query->get_total() === 1 ?
-									$collection->get_label( 'singular_name', $collection->get_singular_name() )
-									: $collection->get_label( 'name', $collection->get_name() ),
-								'value' => $query->get_total(),
-							),
-						),
-						'total'   => $total,
-					),
-					$query,
-					$request,
-					$this
-				)
-			);
-		} else {
-			$response = rest_ensure_response(
-				apply_filters(
-					$this->prefix_hook( 'get_collection_items' ),
-					$items,
-					$query,
-					$request,
-					$this
-				)
-			);
-		}
+		$response = rest_ensure_response(
+			apply_filters(
+				$this->prefix_hook( 'get_collection_items' ),
+				$items,
+				$query,
+				$request,
+				$this
+			)
+		);
 
 		// Add headers.
 		$response->header( 'X-WP-Total', $total );
@@ -1017,11 +1002,9 @@ class REST_Controller extends \WP_REST_Controller {
 
 				// Special handling for metadata.
 				if ( 'metadata' === $arg ) {
-
 					$metadata = is_array( $request[ $arg ] ) ? $request[ $arg ] : array();
 
 					foreach ( $metadata as $key => $value ) {
-
 						if ( '' === $value ) {
 							$record->remove_meta( $key );
 						} else {
@@ -1072,7 +1055,6 @@ class REST_Controller extends \WP_REST_Controller {
 
 				// Normalize values when exporting.
 				if ( ! empty( $request['__fields'] ) ) {
-
 					if ( is_bool( $value ) ) {
 						$value = (int) $value;
 					}
@@ -1253,7 +1235,6 @@ class REST_Controller extends \WP_REST_Controller {
 
 		// Process the batches.
 		foreach ( $items as $action => $action_items ) {
-
 			if ( ! isset( $responses[ $action ] ) ) {
 				$responses[ $action ] = array();
 			}
@@ -1513,10 +1494,9 @@ class REST_Controller extends \WP_REST_Controller {
 		try {
 			$schema  = array();
 			$default = 'id';
-			$hidden  = array( 'id' );
+			$hidden  = $collection->hidden;
 
 			foreach ( $collection->get_props() as $prop ) {
-
 				if ( $prop->is_dynamic ) {
 					$hidden[] = $prop->name;
 				}
@@ -1530,24 +1510,25 @@ class REST_Controller extends \WP_REST_Controller {
 				}
 
 				$schema[ $prop->name ] = array(
-					'name'        => $prop->name,
-					'label'       => $prop->label,
-					'description' => $prop->description,
-					'length'      => $prop->length,
-					'nullable'    => $prop->nullable,
-					'default'     => $prop->default,
-					'enum'        => $enum,
-					'readonly'    => $prop->readonly,
-					'multiple'    => $prop->is_meta_key && $prop->is_meta_key_multiple,
-					'is_dynamic'  => $prop->is_dynamic,
-					'is_boolean'  => $prop->is_boolean(),
-					'is_numeric'  => $prop->is_numeric(),
-					'is_float'    => $prop->is_float(),
-					'is_date'     => $prop->is_date(),
-					'is_textarea' => ! $prop->is_date() && ! $prop->is_tokens && '%s' === $prop->get_data_type() && empty( $prop->length ),
-					'is_meta'     => $prop->is_meta_key,
-					'is_tokens'   => $prop->is_tokens,
-					'js_props'    => $prop->js_props,
+					'name'         => $prop->name,
+					'label'        => $prop->label,
+					'description'  => $prop->description,
+					'length'       => $prop->length,
+					'nullable'     => $prop->nullable,
+					'default'      => $prop->default,
+					'enum'         => $enum,
+					'readonly'     => $prop->readonly,
+					'multiple'     => $prop->is_meta_key && $prop->is_meta_key_multiple,
+					'is_dynamic'   => $prop->is_dynamic,
+					'is_boolean'   => $prop->is_boolean(),
+					'is_numeric'   => $prop->is_numeric(),
+					'is_float'     => $prop->is_float(),
+					'is_date'      => $prop->is_date(),
+					'is_date_time' => $prop->is_date_time(),
+					'is_textarea'  => ! $prop->is_date() && ! $prop->is_tokens && '%s' === $prop->get_data_type() && empty( $prop->length ),
+					'is_meta'      => $prop->is_meta_key,
+					'is_tokens'    => $prop->is_tokens,
+					'js_props'     => $prop->js_props,
 				);
 
 				if ( $prop->is_tokens ) {
@@ -1583,7 +1564,7 @@ class REST_Controller extends \WP_REST_Controller {
 					'hizzle_rest_' . $this->get_normalized_rest_base() . '_collection_js_params',
 					array(
 						'schema'        => array_values( $schema ),
-						'ignore'        => array(),
+						'ignore'        => $collection->ignore,
 						'hidden'        => $hidden,
 						'routes'        => $this->get_admin_app_routes(),
 						'labels'        => (object) $collection->labels,

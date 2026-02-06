@@ -12,8 +12,19 @@ defined( 'ABSPATH' ) || exit;
  */
 class Main {
 
+	/**
+	 * @var array Activity checks cache.
+	 */
+	protected static $activity_checks_cache = array();
+
+	/**
+	 * Initializes the email logs.
+	 *
+	 * @since 3.0.0
+	 */
 	public static function init() {
 		add_filter( 'noptin_db_schema', array( __CLASS__, 'add_table' ) );
+		add_action( 'noptin_log_activity', array( __CLASS__, 'create' ), 10, 5 );
 	}
 
 	/**
@@ -45,9 +56,10 @@ class Main {
 	 * @param int $campaign_id The campaign ID.
 	 * @param string $email The email address.
 	 * @param string $extra Additional information.
+	 * @param array $meta Additional metadata.
 	 * @return int|\WP_Error
 	 */
-	public static function create( $activity, $campaign_id, $email, $extra = null ) {
+	public static function create( $activity, $campaign_id, $email, $extra = null, $meta = array() ) {
 
 		if ( ! is_string( $email ) || ! is_email( $email ) ) {
 			return;
@@ -55,21 +67,64 @@ class Main {
 
 		$log = self::get( 0 );
 		$log->set( 'activity', $activity );
-		$log->set( 'campaign_id', $campaign_id );
 		$log->set( 'email', $email );
+		$log->set( 'campaign_id', (int) $campaign_id );
+		$log->set_metadata( $meta );
 
 		if ( $extra ) {
 			$log->set( 'activity_info', $extra );
 		}
 
-		// Maybe log for the parent campaign.
-		$parent = get_post_parent( $campaign_id );
+		if ( ! empty( $campaign_id ) ) {
 
-		if ( $parent ) {
-			$log->set( 'parent_id', $parent->ID );
+			// Maybe log for the parent campaign.
+			$parent = get_post_parent( $campaign_id );
+
+			if ( $parent ) {
+				$log->set( 'parent_id', $parent->ID );
+			}
 		}
 
+		// Clear cache.
+		self::$activity_checks_cache = array();
 		return $log->save();
+	}
+
+	/**
+	 * Checks if the given email address did an action on a given email campaign.
+	 *
+	 * @param string $activity The activity type. E.g, open, click, send, bounce, unsubscribe, complain.
+	 * @param int $campaign_id
+	 * @param string $email_address
+	 * @param int|string $since
+	 */
+	public static function did_activity( $activity, $campaign_id = 'any', $email_address = 'any', $since = 'any' ) {
+
+		if ( 'any' === $since ) {
+			$since = null;
+		}
+
+		// Check cache.
+		$cache_key = $activity . '-' . ( $campaign_id ? $campaign_id : 'any' ) . '-' . ( $email_address ? $email_address : 'any' ) . '-' . ( $since ? $since : 'any' );
+		if ( isset( self::$activity_checks_cache[ $cache_key ] ) ) {
+			return self::$activity_checks_cache[ $cache_key ];
+		}
+
+		$was_send = self::query(
+			array_filter(
+				array(
+					'email'              => $email_address,
+					'campaign_id'        => $campaign_id,
+					'activity'           => $activity,
+					'number'             => 1,
+					'date_created_after' => $since,
+				)
+			),
+			'count'
+		);
+
+		self::$activity_checks_cache[ $cache_key ] = ! empty( $was_send );
+		return self::$activity_checks_cache[ $cache_key ];
 	}
 
 	/**
@@ -108,7 +163,6 @@ class Main {
 						'campaign_id'    => array(
 							'type'        => 'BIGINT',
 							'length'      => 20,
-							'nullable'    => false,
 							'description' => 'The campaign ID.',
 						),
 

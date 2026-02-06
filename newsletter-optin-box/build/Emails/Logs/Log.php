@@ -27,13 +27,19 @@ class Log extends \Hizzle\Store\Record {
 			return '';
 		}
 
-		$post = get_post( $id );
+		$post = \Hizzle\Noptin\Emails\Email::from( $id );
 
-		if ( ! $post ) {
-			return '';
+		if ( ! $post->exists() ) {
+			return '(Deleted)';
 		}
 
-		return $post->post_title;
+		$name = $post->name;
+
+		if ( empty( $name ) ) {
+			$name = $post->subject;
+		}
+
+		return $name;
 	}
 
 	/**
@@ -48,6 +54,43 @@ class Log extends \Hizzle\Store\Record {
 			return '';
 		}
 
-		return get_edit_post_link( $id );
+		$post = \Hizzle\Noptin\Emails\Email::from( $id );
+
+		if ( ! $post->exists() ) {
+			return '';
+		}
+
+		return $post->get_edit_url();
+	}
+
+	/**
+	 * Gets the log's formatted activity info.
+	 *
+	 * @return string
+	 */
+	public function get_formatted_activity_info( $context = 'view' ) {
+		$info = $this->get_meta( 'formatted_activity_info' );
+
+		if ( is_string( $info ) ) {
+			return wp_kses_post( $info );
+		}
+
+		$info = $this->get( 'activity_info', $context );
+
+		if ( 'click' !== $this->get( 'activity' ) || empty( $info ) ) {
+			return is_string( $info ) ? wp_kses_post( $info ) : '';
+		}
+
+		$text = str_replace( array( home_url(), 'https://', 'http://' ), '', $info );
+		if ( strlen( $text ) > 15 ) {
+			$text = substr( $text, 0, 15 ) . '...';
+		}
+
+		return sprintf(
+			'<a href="%s" title="%s" target="_blank">%s</a>',
+			esc_url( $info ),
+			esc_attr( $info ),
+			esc_html( $text )
+		);
 	}
 }

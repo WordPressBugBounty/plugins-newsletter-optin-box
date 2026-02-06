@@ -450,7 +450,7 @@ class Main {
 											),
 											'type'        => 'text',
 											'placeholder' => sprintf(
-												/* translators: %s: Example */
+												/* translators: %s: The Example */
 												__( 'For example, %s', 'newsletter-optin-box' ),
 												'[[email]], ' . get_option( 'admin_email' ) . ' --notracking'
 											),
@@ -749,33 +749,6 @@ class Main {
 									),
 								),
 							),
-						),
-					),
-				),
-
-				'brand_info'          => array(
-					'el'       => 'settings_group',
-					'label'    => __( 'Brand Info', 'newsletter-optin-box' ),
-					'section'  => 'emails',
-					'settings' => array(
-						'company'     => array(
-							'el'          => 'input',
-							'label'       => __( 'Company', 'newsletter-optin-box' ),
-							'placeholder' => get_option( 'blogname' ),
-							'tooltip'     => __( 'What is the name of your company or website?', 'newsletter-optin-box' ),
-						),
-						'logo_url'    => array(
-							'el'      => 'input',
-							'type'    => 'image',
-							'label'   => __( 'Logo', 'newsletter-optin-box' ),
-							'tooltip' => __( 'Enter a full url to your logo. Works best with rectangular images.', 'newsletter-optin-box' ),
-						),
-						'brand_color' => array(
-							'el'          => 'color',
-							'label'       => __( 'Brand Color', 'newsletter-optin-box' ),
-							'placeholder' => '#1a82e2',
-							'default'     => '#1a82e2',
-							'description' => __( 'Used as the link color and button background.', 'newsletter-optin-box' ),
 						),
 					),
 				),

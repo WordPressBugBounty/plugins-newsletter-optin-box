@@ -56,14 +56,14 @@ class Main {
 		// Add shortcode to display past newsletters.
 		add_shortcode( 'past_noptin_newsletters', array( __CLASS__, 'past_newsletters' ) );
 
+		// Bulk emails.
+		Bulk\Main::init();
+
 		// Email preview.
 		Preview::init();
 
 		// Templates.
 		Templates::init();
-
-		// Revenue.
-		Revenue::init();
 
 		// Activity logs.
 		Logs\Main::init();
@@ -402,7 +402,7 @@ class Main {
 						__( 'Newsletter - %s', 'newsletter-optin-box' ),
 						date_i18n( get_option( 'date_format' ) )
 					),
-				)
+				),
 			)
 		);
 
@@ -578,8 +578,6 @@ class Main {
 	 * @param int $post_id The post id.
 	 */
 	public static function on_delete_campaign( $post_id ) {
-		global $wpdb;
-
 		$email = new Email( $post_id );
 
 		// Ensure email exists.
@@ -587,16 +585,6 @@ class Main {
 
 			// Fire deleted hooks.
 			self::fire_email_action_hook( 'deleted', $email );
-
-			// Delete related stats.
-			delete_noptin_subscriber_meta_by_key( "_campaign_$post_id" );
-
-			$wpdb->delete(
-				$wpdb->usermeta,
-				array(
-					'meta_key' => "_campaign_$post_id",
-				)
-			);
 		}
 	}
 

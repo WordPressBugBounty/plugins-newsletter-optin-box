@@ -361,6 +361,9 @@ class Noptin_Email_Generator {
 		// Inline CSS styles.
 		$content = $this->inline_styles( $content );
 
+		// Remove script tags.
+		$content = preg_replace( '/<(script|svg|iframe|meta|object|embed|applet|link)[^>]*?>.*?<\/\1>/is', '', $content );
+
 		// Remove unused classes and ids.
 		$content = $this->clean_html( $content );
 
@@ -408,9 +411,6 @@ class Noptin_Email_Generator {
 
 	private function clean_html( $html ) {
 
-		// Remove script tags.
-		$html = preg_replace( '/<(script|svg|iframe|meta|object|embed|applet|link)[^>]*?>.*?<\/\1>/is', '', $html );
-
 		// Check if DOMDocument is available.
 		if ( ! class_exists( 'DOMDocument' ) || empty( $html ) ) {
 			return $html;
@@ -443,7 +443,7 @@ class Noptin_Email_Generator {
 			// Escape attributes.
 			foreach ( $element->attributes ?? array() as $attribute ) {
 				$attr_name  = strtolower( $attribute->name );
-            	$attr_value = $attribute->value;
+				$attr_value = $attribute->value;
 
 				if ( empty( $attr_value ) ) {
 					continue;
@@ -681,12 +681,18 @@ class Noptin_Email_Generator {
 			// Fix section widths on Apple mail.
 			if ( 'table' === $element->nodeName && $element->hasAttribute( 'width' ) && $element->hasAttribute( 'style' ) ) {
 				$style = $element->getAttribute( 'style' );
-				if ( preg_match( '/width:([^;]+);/', $style, $matches ) ) {
+				if ( preg_match( '/(?:^|;|\s)width\s*:\s*([^;]+);/', $style, $matches ) ) {
 					$style = str_replace( $matches[0], '', $style );
 
 					// Remove max-width from style
-					if ( preg_match( '/max-width:([^;]+);/', $style, $max_width_matches ) ) {
+					if ( preg_match( '/(?:^|;|\s)max-width\s*:\s*([^;]+);/', $style, $max_width_matches ) ) {
 						$style = str_replace( $max_width_matches[0], '', $style );
+					}
+
+					// Ensure style ends with semicolon before appending
+					$style = rtrim( $style, '; ' );
+					if ( ! empty( $style ) ) {
+						$style .= '; ';
 					}
 
 					$style .= 'width: 100%; max-width: ' . $matches[1] . ';';
@@ -695,7 +701,8 @@ class Noptin_Email_Generator {
 			}
 
 			// Check if the class is used in the CSS.
-			if ( $element->hasAttribute( 'class' ) ) {
+			$is_preview = defined( 'NOPTIN_EMAIL_PREVIEW_MODE' ) && NOPTIN_EMAIL_PREVIEW_MODE;
+			if ( $element->hasAttribute( 'class' ) && ! $is_preview ) {
 				$class = $element->getAttribute( 'class' );
 
 				// Split the class attribute.
@@ -717,7 +724,7 @@ class Noptin_Email_Generator {
 			}
 
 			// Check if the id is used in the CSS.
-			if ( $element->hasAttribute( 'id' ) ) {
+			if ( $element->hasAttribute( 'id' ) && ! $is_preview ) {
 				$id = $element->getAttribute( 'id' );
 				if ( ! isset( $ids[ $id ] ) ) {
 					// Id is not used, remove it.
@@ -926,11 +933,12 @@ class Noptin_Email_Generator {
 	 */
 	public function inline_styles( $content ) {
 
-		// Check if this is PHP 5.6 and above.
-		// TODO: Switch to PHP 7 and upgrade emogrifier.
-		if ( version_compare( phpversion(), '5.6', '<' ) || empty( $content ) ) {
+		// Abort if no content.
+		if ( empty( $content ) ) {
 			return $content;
 		}
+
+		$content = apply_filters( 'noptin_content_pre_inline_styles', $content, $this );
 
 		// Use preg_replace to remove the CSS comments.
 		$content = preg_replace( '/\/\*.*?\*\//s', '', $content );
@@ -941,7 +949,7 @@ class Noptin_Email_Generator {
 		}
 
 		// Maybe abort early.
-		if ( ! class_exists( 'DOMDocument' ) || ! class_exists( '\TijsVerkoyen\CssToInlineStyles\CssToInlineStyles' ) ) {
+		if ( ! class_exists( 'DOMDocument' ) ) {
 			return $content;
 		}
 
@@ -951,7 +959,7 @@ class Noptin_Email_Generator {
 		try {
 
 			// create inliner instance
-			$inliner = new \TijsVerkoyen\CssToInlineStyles\CssToInlineStyles();
+			$inliner = new \Hizzle\Noptin\Emails\CssToInlineStyles\CssToInlineStyles();
 
 			// Inline styles.
 			return $inliner->convert( $content, $styles );
@@ -959,9 +967,9 @@ class Noptin_Email_Generator {
 			log_noptin_message( $e->getMessage() );
 			return $content;
 		} catch ( Symfony\Component\CssSelector\Exception\SyntaxErrorException $e ) {
-            log_noptin_message( $e->getMessage() );
+			log_noptin_message( $e->getMessage() );
 			return $content;
-        }
+		}
 	}
 
 	/**
@@ -1058,19 +1066,19 @@ class Noptin_Email_Generator {
 	}
 
 	/**
-     * At the moment rgb() is not allowed to use in the style attribute. `style="color:rgb(0,0,0);"` gets
-     * sanitized if you use wp_kses. We hook into safecss_filter_attr_allow_css to allow for rgb. The code
-     * follows the precedent WordPress sets for the usage of var(), calc() etc. in safecss_filter_attr()
-    */
+	 * At the moment rgb() is not allowed to use in the style attribute. `style="color:rgb(0,0,0);"` gets
+	 * sanitized if you use wp_kses. We hook into safecss_filter_attr_allow_css to allow for rgb. The code
+	 * follows the precedent WordPress sets for the usage of var(), calc() etc. in safecss_filter_attr()
+	*/
 	public static function allow_rgb_in_css( $allowed, $css_string ) {
 		if ( $allowed ) {
 			return (bool) $allowed;
 		}
 
 		$css_string = preg_replace(
-            '/\b(?:rgb|rgba)(\((?:[^()]|(?1))*\))/',
-           '',
-            $css_string
+			'/\b(?:rgb|rgba)(\((?:[^()]|(?1))*\))/',
+			'',
+			$css_string
 		);
 
 		return ! preg_match( '%[\\\(&=}]|/\*%', $css_string );
@@ -1100,7 +1108,7 @@ class Noptin_Email_Generator {
 			$property = trim( strtolower( $property ) );
 			$value    = trim( $value );
 
-			if ( empty( $property ) || empty( $value ) ) {
+			if ( '' === $property || '' === $value ) {
 				continue;
 			}
 

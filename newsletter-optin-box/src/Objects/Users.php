@@ -255,7 +255,6 @@ class Users extends People {
 
 		// Fetch custom fields.
 		foreach ( noptin_get_user_custom_fields() as $key => $field ) {
-
 			if ( empty( $field['options'] ) ) {
 				$fields[ "custom_fields.$key" ] = array(
 					'label'       => $field['label'],
@@ -278,12 +277,13 @@ class Users extends People {
 	 * Retrieves newsletter recipients.
 	 *
 	 * @param \Hizzle\Noptin\Emails\Email $email
-	 * @return int[] $users The user IDs.
+	 * @return int[] $subscribers The subscriber IDs.
 	 */
-	public function get_newsletter_recipients( $options, $email ) {
+	public function get_batched_newsletter_recipients( $options, $email, $batch_size, $offset ) {
 		// Prepare arguments.
 		$args = array(
-			'number'  => -1,
+			'offset'  => $offset,
+			'number'  => $batch_size,
 			'fields'  => 'ID',
 			'orderby' => 'ID',
 		);
@@ -322,7 +322,6 @@ class Users extends People {
 		$custom_fields = $options['custom_fields'] ?? array();
 
 		foreach ( $custom_fields as $key => $value ) {
-
 			$value = trim( $value );
 
 			// Skip empty fields.

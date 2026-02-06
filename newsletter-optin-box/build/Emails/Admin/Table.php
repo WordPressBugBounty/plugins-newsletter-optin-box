@@ -44,6 +44,11 @@ class Table extends \WP_List_Table {
 	public $query;
 
 	/**
+	 * @var array $email_senders email senders.
+	 */
+	public $email_senders = array();
+
+	/**
 	 * Constructor function.
 	 *
 	 * @param \Hizzle\Noptin\Emails\Type $email_type email type.
@@ -72,14 +77,19 @@ class Table extends \WP_List_Table {
 
 		$this->process_bulk_action();
 		$this->prepare_query();
+
+		if ( $this->has_items() && $this->email_type->supports_recipients ) {
+			$this->email_senders = wp_list_filter(
+				get_noptin_email_senders( true ),
+				array( 'is_installed' => true )
+			);
+		}
 	}
 
 	/**
 	 *  Prepares the display query
 	 */
 	public function prepare_query() {
-		global $noptin_campaigns_query;
-
 		if ( $this->email_type->upsell ) {
 			return;
 		}
@@ -122,10 +132,9 @@ class Table extends \WP_List_Table {
 		if ( 'trash' === $this->email_type->type ) {
 			$query_args['post_status'] = 'trash';
 			$query_args['meta_query']  = array();
-		}
 
-		// Filter by status (additional status filtering beyond post_status)
-		else if ( ! empty( $_GET['email_status_filter'] ) ) {
+			// Filter by status (additional status filtering beyond post_status)
+		} elseif ( ! empty( $_GET['email_status_filter'] ) ) {
 			$status_filter = sanitize_text_field( rawurldecode( $_GET['email_status_filter'] ) );  // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 			$query_args['post_status'] = 'publish';
@@ -185,8 +194,7 @@ class Table extends \WP_List_Table {
 			$query_args['author'] = get_current_user_id();
 		}
 
-		$noptin_campaigns_query = new \WP_Query( $query_args );
-		$this->query            = $noptin_campaigns_query;
+		$this->query = new \WP_Query( $query_args );
 	}
 
 	/**
@@ -202,6 +210,15 @@ class Table extends \WP_List_Table {
 		echo '</tr>';
 	}
 
+	private function cron_scheduled() {
+		static $cron_scheduled = null;
+
+		if ( null === $cron_scheduled ) {
+			$cron_scheduled = \Hizzle\Noptin\Tasks\Main::get_next_scheduled_task( \Hizzle\Noptin\Emails\Bulk\Main::HEALTH_CHECK_HOOK );
+		}
+
+		return $cron_scheduled;
+	}
 	/**
 	 * Default columns.
 	 *
@@ -356,7 +373,7 @@ class Table extends \WP_List_Table {
 				$description = wp_kses_post( apply_filters( 'noptin_' . $item->type . '_table_about_' . $item->get_sub_type(), '', $item, $this ) );
 
 				if ( ! empty( $description ) ) {
-					$title .= "<div>$description</div>";
+					$title .= $description;
 				}
 			} else {
 				$title .= sprintf(
@@ -382,6 +399,20 @@ class Table extends \WP_List_Table {
 			);
 		}
 
+		// Parent newsletter.
+		if ( 'newsletter' === $this->email_type->type && $item->parent_id ) {
+			$parent = new Email( $item->parent_id );
+
+			if ( $parent->exists() ) {
+				$title .= sprintf(
+					'<div><span class="noptin-strong">%s</span>: <a href="%s">%s</a></div>',
+					esc_html__( 'Source', 'newsletter-optin-box' ),
+					esc_url( $parent->get_edit_url() ),
+					esc_html( $parent->name )
+				);
+			}
+		}
+
 		// Recipients.
 		if ( $item->supports( 'supports_recipients' ) ) {
 			$sender = $item->get_sender();
@@ -402,14 +433,20 @@ class Table extends \WP_List_Table {
 					);
 				}
 			} elseif ( ! empty( $sender ) ) {
-				$senders = get_noptin_email_senders();
-
-				if ( isset( $senders[ $sender ] ) ) {
+				if ( isset( $this->email_senders[ $sender ] ) ) {
 					$title .= sprintf(
 						'<div><span class="noptin-strong">%s</span>: <span>%s</span></div>',
 						esc_html__( 'Recipients', 'newsletter-optin-box' ),
-						esc_html( $senders[ $sender ] )
+						esc_html( $this->email_senders[ $sender ]['label'] )
 					);
+
+					foreach ( $this->get_email_sender_settings( $sender, $item ) as $filter_label => $filter_value ) {
+						$title .= sprintf(
+							'<div style="margin-left: 15px;"><span class="noptin-strong">%s</span>: <span>%s</span></div>',
+							esc_html( $filter_label ),
+							esc_html( $filter_value )
+						);
+					}
 				} else {
 					$title .= sprintf(
 						'<p class="description" style="color: red;">%s</p>',
@@ -480,6 +517,31 @@ class Table extends \WP_List_Table {
 					)
 				);
 			}
+
+			// Check if campaign is sending but CRON event is not scheduled.
+			if ( 'publish' === $item->status && ! get_post_meta( $item->id, 'completed', true ) && ! get_post_meta( $item->id, 'paused', true ) ) {
+				if ( ! self::cron_scheduled() ) {
+					$title .= sprintf(
+						'<p class="description" style="color: red;">%s</p>',
+						'The email sending CRON event was not scheduled. Try pausing then resuming the campaign.'
+					);
+
+					// Add a link to help troubleshoot the error.
+					$title .= sprintf(
+						'<p class="noptin-strong description">%s</p>',
+						sprintf(
+							'<a href="%s" target="_blank" class="noptin-text-success">%s</a>',
+							esc_url(
+								noptin_get_guide_url(
+									$this->email_type->plural_label,
+									'sending-emails/how-to-fix-emails-not-sending/'
+								)
+							),
+							'Learn more about troubleshooting email sending'
+						)
+					);
+				}
+			}
 		}
 
 		$title = '<div class="noptin-v-stack">' . $title . '</div>';
@@ -491,6 +553,57 @@ class Table extends \WP_List_Table {
 		}
 
 		return $title;
+	}
+
+	/**
+	 * Adds sender filters to the label
+	 *
+	 * @param string $sender sender.
+	 * @param Email  $email email.
+	 */
+	private function get_email_sender_settings( $sender, $email ) {
+		if ( empty( $this->email_senders[ $sender ]['settings']['key'] ) ) {
+			return array();
+		}
+
+		$options = $email->get( $this->email_senders[ $sender ]['settings']['key'] );
+		$fields  = $this->email_senders[ $sender ]['settings']['fields'] ?? array();
+
+		if ( empty( $options ) || ! is_array( $options ) ) {
+			return array();
+		}
+
+		$filters = array();
+
+		foreach ( $options as $key => $value ) {
+			if ( ! is_numeric( $value ) && empty( $value ) ) {
+				continue;
+			}
+
+			if ( is_object( $value ) ) {
+				continue;
+			}
+
+			if ( is_bool( $value ) ) {
+				$value = $value ? 'Yes' : 'No';
+			}
+
+			$value = (array) $value;
+
+			if ( is_array( $fields[ $key ]['options'] ?? '' ) ) {
+				$option_labels = array();
+				foreach ( $value as $_value ) {
+					$option_labels[] = $fields[ $key ]['options'][ $_value ] ?? $_value;
+				}
+				$value = $option_labels;
+			}
+
+			$value = array_map( 'maybe_serialize', $value );
+
+			$filters[ $fields[ $key ]['label'] ?? ucfirst( str_replace( '_', ' ', $key ) ) ] = implode( ', ', $value );
+		}
+
+		return $filters;
 	}
 
 	/**
@@ -527,6 +640,10 @@ class Table extends \WP_List_Table {
 				} else {
 					$app['label'] = __( 'Sending', 'newsletter-optin-box' );
 				}
+			}
+
+			if ( 'email_template' === $item->type && $item->get( 'template_featured' ) ) {
+				$app['label'] = 'Featured';
 			}
 
 			$app['statsUrl'] = $item->get_activity_url();
@@ -1097,7 +1214,7 @@ class Table extends \WP_List_Table {
 
 		?>
 			<div id="noptin-email-campaigns__editor--add-new__in-table">
-				<?php parent::no_items(); ?>
+			<?php parent::no_items(); ?>
 				<!-- spinner -->
 				<span class="spinner" style="visibility: visible; float: none;"></span>
 				<!-- /spinner -->

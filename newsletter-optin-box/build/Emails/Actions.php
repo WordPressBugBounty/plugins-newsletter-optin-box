@@ -25,11 +25,9 @@ class Actions {
 
 		// Email open.
 		add_action( 'noptin_actions_handle_email_open', array( __CLASS__, 'handle_email_open' ) );
-		add_filter( 'noptin_auto_submit_actions_page_for_email_open', '__return_false' );
 
 		// Email click.
 		add_action( 'noptin_actions_handle_email_click', array( __CLASS__, 'handle_email_click' ) );
-		add_filter( 'noptin_auto_submit_actions_page_for_email_click', '__return_false' );
 	}
 
 	/**
@@ -83,10 +81,6 @@ class Actions {
 			$recipient = Main::$current_email_recipient;
 
 			if ( is_array( $recipient ) ) {
-				if ( ! empty( $recipient['email'] ) ) {
-					Logs\Main::create( 'open', $email->id, $recipient['email'] );
-				}
-
 				if ( ! empty( $recipient['subscriber'] ) ) {
 					log_noptin_subscriber_campaign_open( $recipient['subscriber'], $email->id );
 				} elseif ( ! empty( $recipient['email'] ) ) {
@@ -101,6 +95,10 @@ class Actions {
 						update_post_meta( $email->id, '_noptin_opens_emails', $opens );
 						increment_noptin_campaign_stat( $email->id, '_noptin_opens' );
 					}
+				}
+
+				if ( ! empty( $recipient['email'] ) ) {
+					Logs\Main::create( 'open', $email->id, $recipient['email'] );
 				}
 			}
 		}
@@ -125,11 +123,6 @@ class Actions {
 		// Fetch recipient.
 		$recipient = Main::$current_email_recipient;
 
-		// Add cookie.
-		if ( ! empty( Main::$current_email ) ) {
-			Revenue::record_email_click( Main::$current_email->id );
-		}
-
 		// Abort if no destination.
 		if ( ! is_array( $recipient ) || empty( $recipient['to'] ) || '#' === $recipient['to'] ) {
 			wp_safe_redirect( get_home_url() );
@@ -138,26 +131,25 @@ class Actions {
 
 		$destination = str_replace( array( '#038;', '&#38;', '&amp;' ), '&', rawurldecode( $recipient['to'] ) );
 
-		// Ensure we have a campaign.
+		// If we have a campaign....
 		if ( ! empty( Main::$current_email ) ) {
-			if ( is_array( $recipient ) ) {
-				if ( ! empty( $recipient['subscriber'] ) ) {
-					log_noptin_subscriber_campaign_click( $recipient['subscriber'], Main::$current_email->id, $destination );
-				} elseif ( ! empty( $recipient['email'] ) ) {
-					$clicks = get_post_meta( Main::$current_email->id, '_noptin_clicks_emails', true );
+			if ( ! empty( $recipient['subscriber'] ) ) {
+				log_noptin_subscriber_campaign_click( $recipient['subscriber'], Main::$current_email->id, $destination );
+			} elseif ( ! empty( $recipient['email'] ) ) {
+				$clicks = get_post_meta( Main::$current_email->id, '_noptin_clicks_emails', true );
 
-					if ( ! is_array( $clicks ) ) {
-						$clicks = array();
-					}
+				if ( ! is_array( $clicks ) ) {
+					$clicks = array();
+				}
 
-					if ( ! in_array( $recipient['email'], $clicks, true ) ) {
-						$clicks[] = $recipient['email'];
-						update_post_meta( Main::$current_email->id, '_noptin_clicks_emails', $clicks );
-						increment_noptin_campaign_stat( Main::$current_email->id, '_noptin_clicks' );
-					}
+				if ( ! in_array( $recipient['email'], $clicks, true ) ) {
+					$clicks[] = $recipient['email'];
+					update_post_meta( Main::$current_email->id, '_noptin_clicks_emails', $clicks );
+					increment_noptin_campaign_stat( Main::$current_email->id, '_noptin_clicks' );
 				}
 			}
 
+			// Log the click.
 			if ( ! empty( $recipient['email'] ) ) {
 				Logs\Main::create( 'click', Main::$current_email->id, $recipient['email'], $destination );
 			}

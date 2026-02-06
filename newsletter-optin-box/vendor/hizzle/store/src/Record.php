@@ -577,7 +577,7 @@ class Record {
 
 		// Set directly to the data if we have it.
 		if ( array_key_exists( $key, $this->data ) ) {
-			return $prop->is_date() ? $this->set_date_prop( $prop, $value ) : $this->set_prop( $prop, $value );
+			return $prop->is_date_time() ? $this->set_date_prop( $prop, $value ) : $this->set_prop( $prop, $value );
 		}
 
 		return false;
@@ -845,10 +845,16 @@ class Record {
 	public function display_prop( $key ) {
 
 		// Check if we have a special display method for this property.
+		// This is deprecated, use get_formatted_{prop} instead.
 		$method = 'the_' . $key;
 
 		if ( method_exists( $this, $method ) ) {
 			return $this->$method();
+		}
+
+		// Check if we have a special formatted getter for this property.
+		if ( is_callable( array( $this, "get_formatted_{$key}" ) ) ) {
+			return $this->{"get_formatted_{$key}"}();
 		}
 
 		// Retrieve the raw value.
@@ -877,6 +883,10 @@ class Record {
 			return $this->display_date_value( $value, empty( $prop ) ? 'datetime' : $prop->type );
 		}
 
+		if ( is_string( $value ) && $prop && strtolower( $prop->type ) === 'date' ) {
+			return date_i18n( get_option( 'date_format' ), strtotime( $value ) );
+		}
+
 		// Arrays.
 		if ( ! is_scalar( $value ) ) {
 			$value = wp_json_encode( $value );
@@ -893,7 +903,7 @@ class Record {
 	 */
 	public function display_date_value( $date, $type ) {
 
-		if ( 'date' === $type ) {
+		if ( 'date' === strtolower( $type ) ) {
 			return esc_html( $date->context( 'view_day' ) );
 		}
 

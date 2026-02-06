@@ -8,8 +8,11 @@
 	 * @var array $query_args
 	 */
 
+	// Run pending tasks.
+	do_action( 'noptin_tasks_run_pending' );
+
 	// Send pending emails.
-	noptin()->bulk_emails()->send_pending();
+	\Hizzle\Noptin\Emails\Bulk\Main::send_pending();
 
 	// Prepare the email type.
 	$email_type  = \Hizzle\Noptin\Emails\Main::get_email_type( $query_args['noptin_email_type'] );
@@ -49,10 +52,9 @@ if ( $parent ) {
 
 		// Check if sending has been paused due to limits.
 		if ( noptin_email_sending_limit_reached() ) {
-
 			$message = sprintf(
 				'<h3>%s</h3>',
-				__( 'Email sending has been paused', 'newsletter-optin-box')
+				__( 'Email sending has been paused', 'newsletter-optin-box' )
 			);
 
 			$message .= '<p>' .
@@ -82,7 +84,7 @@ if ( $parent ) {
 		if ( $can_display_cron_notice && ( ! defined( 'DISABLE_WP_CRON' ) || ! DISABLE_WP_CRON ) ) {
 			$message = sprintf(
 				'<h3>%s</h3>',
-				__( 'WP-Cron is being used for email sending', 'newsletter-optin-box')
+				__( 'WP-Cron is being used for email sending', 'newsletter-optin-box' )
 			);
 
 			$message .= '<p>' . __( 'Your site is using WordPress\' built-in cron system to send emails. This may cause delays in email delivery if your site is cached or doesn\'t receive regular traffic.', 'newsletter-optin-box' ) . '</p>';
@@ -174,7 +176,7 @@ if ( $parent ) {
 		<form id="noptin-email-campaigns-table" method="get">
 			<?php $table->search_box( __( 'Search Campaigns', 'newsletter-optin-box' ), 'post' ); ?>
 			<?php foreach ( $query_args as $key => $value ) : ?>
-				<?php if ( ! in_array( $key, array( 's', '_wpnonce', '_wp_http_referer', 'action', 'action2' ) ) ) : ?>
+				<?php if ( is_scalar( $value ) && ! in_array( $key, array( 's', '_wpnonce', '_wp_http_referer', 'action', 'action2' ), true ) ) : ?>
 					<input type="hidden" name="<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $value ); ?>"/>
 				<?php endif; ?>
 			<?php endforeach; ?>

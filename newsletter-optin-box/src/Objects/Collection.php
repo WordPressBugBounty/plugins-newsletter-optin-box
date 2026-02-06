@@ -149,7 +149,9 @@ abstract class Collection {
 
 			// Only auto-provide the current user if the subject is not a WordPress user.
 			if ( ! in_array( $args['subject'], Users::$user_types, true ) || 'post_author' === $args['subject'] ) {
-				$args['provides'] = array_merge( $args['provides'], array( 'current_user' ) );
+				if ( ! \Hizzle\Noptin\Automation_Rules\Anniversary_Helper::has_trigger( $key ) ) {
+					$args['provides'] = array_merge( $args['provides'], array( 'current_user' ) );
+				}
 			}
 
 			$args['provides'] = $this->filter( $args['provides'], 'provided_collections' );
@@ -178,7 +180,7 @@ abstract class Collection {
 				$args['mail_config']              = $mail_config;
 			}
 
-			$args = apply_filters( 'noptin_collection_type_register_trigger_args', $args, $this );
+			$args = apply_filters( 'noptin_collection_type_register_trigger_args', $args, $this, $key );
 
 			$rules->add_trigger(
 				new Trigger( $key, $args, $this )
@@ -286,6 +288,11 @@ abstract class Collection {
 
 		if ( ! empty( $this->title_field ) ) {
 			$template['heading'] = \Hizzle\Noptin\Emails\Admin\Editor::merge_tag_to_block_name( $this->field_to_merge_tag( $this->title_field ) );
+
+			// Use the heading block if no URL field is set.
+			if ( empty( $this->url_field ) ) {
+				$template['heading'] = $this->field_to_merge_tag( $this->title_field );
+			}
 		}
 
 		if ( ! empty( $this->description_field ) ) {
@@ -438,7 +445,31 @@ abstract class Collection {
 			$fields['avatar_url'] = array(
 				'label' => __( 'Avatar URL', 'newsletter-optin-box' ),
 				'type'  => 'string',
+				'block' => array(
+					'title'       => __( 'Avatar', 'newsletter-optin-box' ),
+					'description' => __( 'Displays the avatar image.', 'newsletter-optin-box' ),
+					'icon'        => 'camera',
+					'metadata'    => array(
+						'ancestor' => array( $this->context ),
+					),
+					'defaults'    => array(
+						'alt' => $this->field_to_merge_tag( 'email' ),
+					),
+					'element'     => 'image',
+				),
 			);
+
+			if ( isset( $fields['email'] ) && empty( $fields['email']['block'] ) ) {
+				$fields['email']['block'] = array(
+					'title'       => __( 'Email', 'newsletter-optin-box' ),
+					'description' => __( 'Displays the email address.', 'newsletter-optin-box' ),
+					'icon'        => 'email',
+					'metadata'    => array(
+						'ancestor' => array( $this->context ),
+					),
+					'element'     => 'text',
+				);
+			}
 		}
 
 		return $this->filter( $fields, 'fields' );
@@ -573,9 +604,9 @@ abstract class Collection {
 			'name'           => $this->plural_type(),
 			'label'          => $this->label,
 			'singular_label' => $this->singular_label,
-			'filters'        => $this->get_filters(),
+			'filters'        => (object) $this->get_filters(),
 			'merge_tags'     => noptin_prepare_merge_tags_for_js( Store::smart_tags( $this->type, $this->singular_label ) ),
-			'template'       => $this->get_list_shortcode_template(),
+			'template'       => (object) $this->get_list_shortcode_template(),
 			'provides'       => $this->provides,
 			'is_stand_alone' => $this->is_stand_alone,
 			'query_defaults' => (object) $this->get_query_defaults(),

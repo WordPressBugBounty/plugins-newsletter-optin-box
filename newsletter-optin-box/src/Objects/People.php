@@ -34,6 +34,8 @@ abstract class People extends Collection {
 	 * Class constructor.
 	 */
 	public function __construct() {
+		do_action( 'noptin_init_people_collection_object', $this );
+
 		if ( ! empty( $this->email_sender ) ) {
 			add_filter( 'noptin_' . $this->email_sender . '_email_sender_collection_object', array( $this, 'get_instance' ) );
 			add_action( 'noptin_init_current_email_recipient', array( $this, 'prepare_email_test_sender_data' ) );
@@ -42,6 +44,9 @@ abstract class People extends Collection {
 				add_filter( 'noptin_bulk_email_senders', array( $this, 'add_email_sender' ), 5 );
 			}
 		}
+
+		$this->title_field = 'email';
+		$this->image_field = 'avatar_url';
 
 		add_action( 'noptin_init_current_email_recipient', array( $this, 'maybe_set_current_noptin_email' ), 5 );
 		parent::__construct();
@@ -160,6 +165,16 @@ abstract class People extends Collection {
 	 */
 	public function get_newsletter_recipients( $options, $email ) {
 		return array();
+	}
+
+	/**
+	 * Retrieves batched email recipients.
+	 *
+	 * @param \Hizzle\Noptin\Emails\Email $email
+	 */
+	public function get_batched_newsletter_recipients( $options, $campaign, $batch_size, $offset ) {
+		// If we're here, then the collection doesn't support batching.
+		return $this->get_newsletter_recipients( $options, $campaign );
 	}
 
 	/**

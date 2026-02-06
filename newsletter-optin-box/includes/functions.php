@@ -1057,6 +1057,15 @@ function noptin_premium_addons() {
 }
 
 /**
+ * Returns the usage mode.
+ *
+ * @return string crm | standalone | full
+ */
+function noptin_get_usage_mode() {
+	return get_noptin_option( 'usage_mode', 'full' );
+}
+
+/**
  * Checks whether or not to upsell integrations.
  *
  * @since 1.9.0
@@ -1064,7 +1073,8 @@ function noptin_premium_addons() {
  * @return bool
  */
 function noptin_upsell_integrations() {
-	return apply_filters( 'noptin_upsell_integrations', ! noptin_has_alk() );
+	$upsell = 'standalone' !== noptin_get_usage_mode();
+	return apply_filters( 'noptin_upsell_integrations', $upsell && ! noptin_has_alk() );
 }
 
 /**
@@ -1703,7 +1713,7 @@ function noptin_newslines_to_array( $text ) {
 
 		// Value and label can be separated by a pipe.
 		if ( strpos( $option, '|' ) !== false ) {
-			list( $value, $label )     = explode( '|', $option );
+			list( $value, $label )     = explode( '|', $option, 2 );
 			$options[ trim( $value ) ] = wp_strip_all_tags( trim( $label ) );
 			continue;
 		}
@@ -1808,6 +1818,41 @@ function noptin_get_conditional_logic_comparisons() {
 }
 
 /**
+ * Checks if a string has another string.
+ *
+ * @param array $first_string
+ * @param array $second_string
+ */
+function noptin_array_string_has( $haystack, $needle ) {
+	$needle   = noptin_parse_list( $needle, true );
+	$haystack = noptin_parse_list( $haystack, true );
+
+	return ! empty( array_intersect( $needle, $haystack ) );
+}
+
+/**
+ * Checks if a string matches.
+ *
+ * @param array $first_string
+ * @param array $second_string
+ */
+function noptin_array_string_match( $haystack, $needle ) {
+	if ( empty( $haystack ) || empty( $needle ) ) {
+		return $haystack === $needle;
+	}
+
+	$needle   = noptin_parse_list( $needle, true );
+	$haystack = noptin_parse_list( $haystack, true );
+
+	if ( count( $haystack ) !== count( $needle ) ) {
+		return false;
+	}
+
+	return empty( array_diff( $haystack, $needle ) )
+		&& empty( array_diff( $needle, $haystack ) );
+}
+
+/**
  * Checks if a given condition is valid.
  *
  * @param string $current_value The current value.
@@ -1824,16 +1869,20 @@ function noptin_is_conditional_logic_met( $current_value, $condition_value, $com
 
 	switch ( $comparison ) {
 		case 'is':
-			return $current_value === $condition_value;
+			return $current_value === $condition_value || noptin_array_string_match( $current_value, $condition_value );
 
 		case 'is_not':
-			return $current_value !== $condition_value;
+			return $current_value !== $condition_value || ! noptin_array_string_match( $current_value, $condition_value );
 
 		case 'contains':
-			return false !== strpos( $current_value, $condition_value );
+			if ( '' === $condition_value ) {
+				return false;
+			}
+
+			return false !== strpos( $current_value, $condition_value ) || noptin_array_string_has( $current_value, $condition_value );
 
 		case 'does_not_contain':
-			return false === strpos( $current_value, $condition_value );
+			return false === strpos( $current_value, $condition_value ) || ! noptin_array_string_has( $current_value, $condition_value );
 
 		case 'begins_with':
 			return 0 === strpos( $current_value, $condition_value );
@@ -1901,7 +1950,7 @@ function noptin_prepare_conditional_logic_for_display( $conditional_logic, $smar
 
 	// Loop through each rule.
 	foreach ( $conditional_logic['rules'] as $rule ) {
-		if ( empty( $rule['type'] ) ) {
+		if ( empty( $rule['type'] ) || empty( $rule['condition'] ) ) {
 			continue;
 		}
 
@@ -1923,12 +1972,23 @@ function noptin_prepare_conditional_logic_for_display( $conditional_logic, $smar
 			$label = sprintf( '<code>%s >> %s</code>', $condition['group'], $label );
 		}
 
+		// Rules that don't need a value.
+		if ( in_array( $rule['condition'], array( 'is_empty', 'is_not_empty' ), true ) ) {
+			$rules[] = sprintf(
+				'%s %s <code>%s</code>',
+				wp_kses_post( $label ),
+				sanitize_text_field( $comparisons[ $rule['condition'] ] )
+			);
+
+			continue;
+		}
+
 		if ( 'number' === $data_type ) {
 			if ( 'is_between' === $rule['condition'] ) {
 				$value = noptin_parse_list( $value );
 				$value = sprintf(
 					// translators: %s is a number.
-					_x( '%1$s and %2$s', 'number', 'newsletter-optin-box' ),
+					_x( '%1$s and %2$s', 'number range', 'newsletter-optin-box' ),
 					floatval( $value[0] ),
 					isset( $value[1] ) ? floatval( $value[1] ) : floatval( $value[0] )
 				);
@@ -1940,7 +2000,7 @@ function noptin_prepare_conditional_logic_for_display( $conditional_logic, $smar
 				$value = noptin_parse_list( $value );
 				$value = sprintf(
 					// translators: %s is a date.
-					__( '%1$s and %2$s', 'newsletter-optin-box' ),
+					_x( '%1$s and %2$s', 'date range', 'newsletter-optin-box' ),
 					gmdate( 'Y-m-d', noptin_string_to_timestamp( $value[0] ) ),
 					isset( $value[1] ) ? gmdate( 'Y-m-d', noptin_string_to_timestamp( $value[1] ) ) : gmdate( 'Y-m-d', noptin_string_to_timestamp( $value[0] ) )
 				);
@@ -2306,7 +2366,7 @@ function noptin_get_smallest_acceptable_image_size( $minimum_width = 150 ) {
 
 		if ( $width >= $minimum_width && $width < $smallest_width ) {
 			$smallest_width = $width;
-			$smallest_size = $size;
+			$smallest_size  = $size;
 		}
 	}
 
@@ -2394,4 +2454,184 @@ function noptin_error_log( $log, $title = '', $file = '', $line = '', $exit = fa
 	if ( $exit ) {
 		exit;
 	}
+}
+
+/**
+ * Formats an amount.
+ *
+ * @since 3.5.0
+ * @return array
+ */
+function noptin_format_amount( $amount ) {
+	$callback  = apply_filters( 'noptin_format_price_callback', null );
+
+	if ( $callback && is_callable( $callback ) ) {
+		return call_user_func( $callback, $amount );
+	}
+
+	return number_format_i18n( $amount, 2 );
+}
+
+/**
+ * Adjusts the brightness of a hex color.
+ *
+ * @since 3.5.0
+ * @param string $hex The hex color code (with or without #).
+ * @param int $percent Positive to lighten, negative to darken (-100 to 100).
+ * @return string The adjusted hex color.
+ */
+function noptin_adjust_color_brightness( $hex, $percent ) {
+	// Remove # if present.
+	$hex = ltrim( $hex, '#' );
+
+	// Convert to RGB.
+	if ( 3 === strlen( $hex ) ) {
+		$r = hexdec( substr( $hex, 0, 1 ) . substr( $hex, 0, 1 ) );
+		$g = hexdec( substr( $hex, 1, 1 ) . substr( $hex, 1, 1 ) );
+		$b = hexdec( substr( $hex, 2, 1 ) . substr( $hex, 2, 1 ) );
+	} else {
+		$r = hexdec( substr( $hex, 0, 2 ) );
+		$g = hexdec( substr( $hex, 2, 2 ) );
+		$b = hexdec( substr( $hex, 4, 2 ) );
+	}
+
+	// Adjust brightness.
+	$r = (int) max( 0, min( 255, $r + ( $r * $percent / 100 ) ) );
+	$g = (int) max( 0, min( 255, $g + ( $g * $percent / 100 ) ) );
+	$b = (int) max( 0, min( 255, $b + ( $b * $percent / 100 ) ) );
+
+	// Convert back to hex.
+	return '#' . str_pad( dechex( $r ), 2, '0', STR_PAD_LEFT ) .
+		str_pad( dechex( $g ), 2, '0', STR_PAD_LEFT ) .
+		str_pad( dechex( $b ), 2, '0', STR_PAD_LEFT );
+}
+
+/**
+ * Converts a hex color to RGBA.
+ *
+ * @since 3.5.0
+ * @param string $hex The hex color code (with or without #).
+ * @param float $alpha The opacity (0 to 1).
+ * @return string The RGBA color string.
+ */
+function noptin_hex_to_rgba( $hex, $alpha = 1 ) {
+	// Remove # if present.
+	$hex = ltrim( $hex, '#' );
+
+	// Convert to RGB.
+	if ( 3 === strlen( $hex ) ) {
+		$r = hexdec( substr( $hex, 0, 1 ) . substr( $hex, 0, 1 ) );
+		$g = hexdec( substr( $hex, 1, 1 ) . substr( $hex, 1, 1 ) );
+		$b = hexdec( substr( $hex, 2, 1 ) . substr( $hex, 2, 1 ) );
+	} else {
+		$r = hexdec( substr( $hex, 0, 2 ) );
+		$g = hexdec( substr( $hex, 2, 2 ) );
+		$b = hexdec( substr( $hex, 4, 2 ) );
+	}
+
+	return "rgba($r, $g, $b, $alpha)";
+}
+
+/**
+ * Returns the Noptin color scheme based on the brand color.
+ *
+ * @since 3.5.0
+ * @return array Array of colors for use in templates.
+ */
+function noptin_get_color_scheme() {
+	// Get the brand color from options, default to Dodger Blue.
+	$color = get_noptin_option( 'brand_color', '#1a82e2' );
+
+	// Ensure it's a valid hex color.
+	if ( ! preg_match( '/^#[a-fA-F0-9]{6}$/', $color ) && ! preg_match( '/^#[a-fA-F0-9]{3}$/', $color ) ) {
+		$color = '#1a82e2';
+	}
+
+	// Calculate related colors.
+	$colors = array(
+		'primary'        => $color,
+		'primary_dark'   => noptin_adjust_color_brightness( $color, -15 ),
+		'primary_light'  => noptin_adjust_color_brightness( $color, 10 ),
+		'gradient_start' => $color,
+		'gradient_end'   => noptin_adjust_color_brightness( $color, -15 ),
+		'shadow_rgba'    => noptin_hex_to_rgba( $color, 0.4 ),
+	);
+
+	return apply_filters( 'noptin_color_scheme', $colors );
+}
+
+/**
+ * Checks if we should show black friday sale notice.
+ *
+ * @return bool
+ */
+function noptin_should_show_black_friday_sale_notice() {
+	$tz   = wp_timezone();
+	$now  = new DateTime( 'now', $tz );
+	$year = $now->format( 'Y' );
+
+	$thanksgiving = new DateTime( "$year-11 fourth thursday", $tz );
+
+	// Black Friday: day after Thanksgiving (start at 00:01).
+	$start = (clone $thanksgiving)->modify( '+1 day' )->setTime( 0, 1 );
+
+	// Cyber Monday: the Monday after Thanksgiving.
+	$end = (clone $thanksgiving)
+		->modify( 'next monday' )
+		->setTime( 23, 59 );
+
+	// Check if the current date is within the range.
+	$is_within_period = ($now >= $start && $now <= $end);
+
+	return apply_filters( 'noptin_show_black_friday_sale_notice', $is_within_period );
+}
+
+/**
+ * Attempts to raise the PHP timeout for time intensive processes.
+ *
+ * Only allows raising the existing limit and prevents lowering it.
+ *
+ * @param int $limit The time limit in seconds.
+ */
+function noptin_raise_time_limit( $limit = 0 ) {
+	$limit              = (int) $limit;
+	$max_execution_time = (int) ini_get( 'max_execution_time' );
+
+	/*
+	 * If the max execution time is already unlimited (zero), or if it exceeds or is equal to the proposed
+	 * limit, there is no reason for us to make further changes (we never want to lower it).
+	 */
+	if ( 0 === $max_execution_time || ( $max_execution_time >= $limit && 0 !== $limit ) ) {
+		return;
+	}
+
+	if ( function_exists( 'set_time_limit' ) && false === strpos( ini_get( 'disable_functions' ), 'set_time_limit' ) && ! ini_get( 'safe_mode' ) ) { // phpcs:ignore PHPCompatibility.IniDirectives.RemovedIniDirectives.safe_modeDeprecatedRemoved
+		@set_time_limit( $limit ); // @codingStandardsIgnoreLine
+	}
+}
+
+/**
+ * Checks if memory is exceeded (more than 90% used)
+ *
+ * @return bool
+ */
+function noptin_memory_exceeded() {
+
+	if ( function_exists( 'ini_get' ) ) {
+		$memory_limit = ini_get( 'memory_limit' );
+	} else {
+		// Sensible default.
+		$memory_limit = '128M';
+	}
+
+	if ( ! $memory_limit || -1 === intval( $memory_limit ) ) {
+		// Unlimited, set to 32GB.
+		$memory_limit = '32G';
+	}
+
+	$memory_limit    = wp_convert_hr_to_bytes( $memory_limit ) * 0.90;
+	$current_memory  = memory_get_usage( true );
+	$memory_exceeded = $current_memory >= $memory_limit;
+
+	return apply_filters( 'noptin_memory_exceeded', $current_memory >= $memory_limit );
 }
