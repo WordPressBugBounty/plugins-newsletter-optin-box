@@ -86,6 +86,10 @@ class Log extends \Hizzle\Store\Record {
 			$text = substr( $text, 0, 15 ) . '...';
 		}
 
+		if ( empty( $text ) ) {
+			$text = str_replace( array( 'https://', 'http://' ), '', $info );
+		}
+
 		return sprintf(
 			'<a href="%s" title="%s" target="_blank">%s</a>',
 			esc_url( $info ),
