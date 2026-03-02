@@ -6,12 +6,12 @@
  * Simple WordPress optin form
  *
  *
- * Plugin Name:     Noptin - WordPress Newsletter Plugin
+ * Plugin Name:     Noptin
  * Plugin URI:      https://noptin.com
- * Description:     A very fast and lightweight WordPress newsletter plugin
+ * Description:     A very fast and lightweight WordPress marketing automation plugin
  * Author:          Noptin Newsletter
  * Author URI:      https://github.com/picocodes
- * Version:         4.1.7
+ * Version:         4.1.8
  * Text Domain:     newsletter-optin-box
  * License:         GPLv3
  * License URI:     http://www.gnu.org/licenses/gpl-3.0.txt
@@ -46,7 +46,7 @@ class Noptin {
 	 * @var   string Plugin version
 	 * @since 1.0.0
 	 */
-	public $version = '4.1.7';
+	public $version = '4.1.8';
 
 	/**
 	 * The current database version.
@@ -306,9 +306,6 @@ class Noptin {
 		// Set up localisation.
 		add_action( 'init', array( $this, 'load_plugin_textdomain' ), 1 );
 
-		// (Maybe) upgrade the database;
-		add_action( 'noptin_db_before_init', array( $this, 'maybe_upgrade_db' ) );
-
 		// css body class.
 		add_filter( 'body_class', array( $this, 'body_class' ) );
 
@@ -413,24 +410,6 @@ class Noptin {
 	public function body_class( $classes ) {
 		$classes['noptin'] = 'noptin';
 		return $classes;
-	}
-
-	/**
-	 * Runs installation
-	 *
-	 * @since 1.0.5
-	 * @access public
-	 */
-	public function maybe_upgrade_db() {
-
-		$installed_version = absint( get_option( 'noptin_db_version', 0 ) );
-
-		// Upgrade db if installed version of noptin is lower than current version
-		if ( $installed_version < $this->db_version ) {
-			new Noptin_Install( $installed_version, $this->db_version );
-
-			do_action( 'noptin_upgrade_db', $installed_version, $this->db_version );
-		}
 	}
 
 	/**

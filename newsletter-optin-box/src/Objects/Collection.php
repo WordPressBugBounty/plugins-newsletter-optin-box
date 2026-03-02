@@ -597,6 +597,12 @@ abstract class Collection {
 	 */
 	public function register_object( $objects ) {
 
+		$filters = apply_filters(
+			"noptin_{$this->object_type}_collection_filters",
+			$this->get_filters(),
+			$this
+		);
+
 		$objects[ $this->type ] = array(
 			'object_type'    => $this->object_type,
 			'icon'           => $this->icon,
@@ -604,7 +610,7 @@ abstract class Collection {
 			'name'           => $this->plural_type(),
 			'label'          => $this->label,
 			'singular_label' => $this->singular_label,
-			'filters'        => (object) $this->get_filters(),
+			'filters'        => (object) $filters,
 			'merge_tags'     => noptin_prepare_merge_tags_for_js( Store::smart_tags( $this->type, $this->singular_label ) ),
 			'template'       => (object) $this->get_list_shortcode_template(),
 			'provides'       => $this->provides,
@@ -765,6 +771,40 @@ abstract class Collection {
 			$filters['date_query'] = $date_query;
 		} else {
 			unset( $filters['date_query'] );
+		}
+
+		return $filters;
+	}
+
+	/**
+	 * Prepares a meta query filter.
+	 *
+	 * @param array $filters The filters.
+	 */
+	protected function prepare_meta_query_filter( $filters ) {
+		$meta_query = array();
+		if ( ! empty( $filters['meta_query'] ) && is_array( $filters['meta_query'] ) ) {
+			$meta_query = $filters['meta_query'];
+		}
+
+		foreach ( $filters as $key => $value ) {
+			if ( 0 === strpos( $key, 'meta.' ) ) {
+				$meta_key = substr( $key, 5 );
+
+				if ( '' !== $meta_key && '' !== $value && ! is_null( $value ) ) {
+					$meta_query[] = array(
+						'key'     => $meta_key,
+						'value'   => $value,
+						'compare' => is_array( $value ) ? 'IN' : '=',
+					);
+				}
+
+				unset( $filters[ $key ] );
+			}
+		}
+
+		if ( ! empty( $meta_query ) ) {
+			$filters['meta_query'] = $meta_query;
 		}
 
 		return $filters;
