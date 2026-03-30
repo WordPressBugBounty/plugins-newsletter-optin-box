@@ -44,9 +44,9 @@ class Main {
 	public static function automation_rules_menu() {
 
 		if ( isset( $_GET['noptin_edit_automation_rule'] ) ) {
-			$title  = __( 'Edit Automation Rule', 'newsletter-optin-box' );
+			$title = __( 'Edit Automation Rule', 'newsletter-optin-box' );
 		} else {
-			$title  = __( 'Automation Rules', 'newsletter-optin-box' );
+			$title = __( 'Automation Rules', 'newsletter-optin-box' );
 		}
 
 		self::$hook_suffix = add_submenu_page(
@@ -93,9 +93,16 @@ class Main {
 			$script = 'automation-rules';
 		}
 
+		$disable_ai = get_noptin_option( 'disable_ai', false );
+
 		// Load the js.
 		if ( file_exists( plugin_dir_path( __DIR__ ) . 'assets/js/' . $script . '.js' ) ) {
 			$config = include plugin_dir_path( __DIR__ ) . 'assets/js/' . $script . '.asset.php';
+
+			if ( ! $disable_ai ) {
+				\Hizzle\Noptin\Emails\Admin\Main::load_ai_script();
+				$config['dependencies'][] = 'noptin-ai';
+			}
 
 			wp_enqueue_script(
 				'noptin-' . $script,
@@ -114,6 +121,9 @@ class Main {
 					array(
 						'isTest'       => defined( 'NOPTIN_IS_TESTING' ),
 						'integrations' => apply_filters( 'noptin_get_all_known_integrations', array() ),
+						'ai'           => array(
+							'disabled' => (bool) $disable_ai,
+						),
 						'data'         => array(
 							'add_new'  => add_query_arg(
 								array(
@@ -122,8 +132,8 @@ class Main {
 								),
 								admin_url( 'admin.php' )
 							),
-							'triggers' => self::prepare_triggers_for_editor( noptin()->automation_rules->get_triggers() ),
-							'actions'  => self::prepare_triggers_for_editor( noptin()->automation_rules->get_actions() ),
+							'triggers' => self::prepare_triggers_for_editor( \Hizzle\Noptin\Automation_Rules\Triggers\Main::all() ),
+							'actions'  => self::prepare_triggers_for_editor( \Hizzle\Noptin\Automation_Rules\Actions\Main::all() ),
 							'app'      => 'automation-rule-editor' === $script ? self::prepare_app() : array(),
 						),
 					),

@@ -81,7 +81,7 @@ function noptin_generate_email_content( $email, $recipient, $track = true ) {
 		'recipient'    => $recipient,
 	);
 
-	$generator = new \Hizzle\Noptin\Emails\Generator();
+	$generator = new \Hizzle\Noptin\Emails\Generate\Generator();
 	return $generator->generate( $args );
 }
 
@@ -104,7 +104,7 @@ function noptin_convert_html_to_text( $html ) {
 	}
 
 	try {
-		$converter = new Noptin_HTML_Text( $html );
+		$converter = new \Hizzle\Noptin\Emails\Generate\HTML_To_Text( $html );
 		return $converter->getText();
 	} catch ( Exception $e ) {
 		return wp_strip_all_tags( $html );
@@ -282,12 +282,14 @@ function get_noptin_campaign_sub_types( $type ) {
 }
 
 /**
- * Returns an array of email templates.
+ * Returns an array of classic email templates.
+ *
+ * This are only used if the user is using the classic email editor.
  *
  * @since 1.7.0
  * @return array
  */
-function get_noptin_email_templates() {
+function get_classic_noptin_email_templates() {
 
 	$templates = array(
 		'default'      => __( 'No template', 'newsletter-optin-box' ),
@@ -297,6 +299,17 @@ function get_noptin_email_templates() {
 	);
 
 	return apply_filters( 'noptin_email_templates', $templates );
+}
+
+/**
+ * Returns an array of email templates.
+ *
+ * @since 1.7.0
+ * @return array
+ * @deprecated
+ */
+function get_noptin_email_templates() {
+	return get_classic_noptin_email_templates();
 }
 
 /**
@@ -401,7 +414,7 @@ function get_noptin_email_template_defaults() {
 		),
 	);
 
-	foreach ( array_keys( get_noptin_email_templates() ) as $template ) {
+	foreach ( array_keys( get_classic_noptin_email_templates() ) as $template ) {
 		if ( ! isset( $defaults[ $template ] ) ) {
 			$defaults[ $template ] = array();
 		}
@@ -935,4 +948,14 @@ function noptin_email_campaign_sent_to( $campaign_id, $email_address, $since = f
 		$email_address,
 		$since
 	);
+}
+
+/**
+ * Checks if we should split the emails menu into two separate menus: Campaigns and Templates.
+ */
+function noptin_should_split_emails_menu() {
+	$visibility = get_noptin_option( 'visibility' );
+	$split      = is_array( $visibility ) && ! empty( $visibility['split_email_menu'] );
+
+	return apply_filters( 'noptin_should_split_emails_menu', $split );
 }

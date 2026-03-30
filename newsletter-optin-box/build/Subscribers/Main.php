@@ -20,6 +20,9 @@ class Main {
 	 * @since 3.0.0
 	 */
 	public static function init() {
+		// Load functions.
+		require_once plugin_dir_path( __FILE__ ) . 'functions.php';
+
 		add_action( 'noptin_init', __CLASS__ . '::register_objects' );
 		add_filter( 'noptin_automation_rule_migrate_triggers', __CLASS__ . '::migrate_triggers' );
 		add_filter( 'noptin_subscriber_should_fire_has_changes_hook', __CLASS__ . '::should_fire_has_changes_hook', 10, 2 );
@@ -31,7 +34,7 @@ class Main {
 
 		// Subscribers menu.
 		if ( is_admin() ) {
-			add_action( 'admin_menu', array( __CLASS__, 'subscribers_menu' ), 33 );
+			add_action( 'admin_menu', array( __CLASS__, 'subscribers_menu' ), 30 );
 			add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
 			add_filter( 'get_noptin_admin_tools', array( __CLASS__, 'filter_admin_tools' ) );
 			add_action( 'noptin_send_confirmation_emails', array( __CLASS__, 'send_confirmation_emails' ) );

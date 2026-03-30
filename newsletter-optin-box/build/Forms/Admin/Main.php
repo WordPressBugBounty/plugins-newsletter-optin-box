@@ -34,7 +34,7 @@ class Main {
 		List_Table::init();
 
 		// Admin menu.
-		add_action( 'admin_menu', array( __CLASS__, 'forms_menu' ), 30 );
+		add_action( 'admin_menu', array( __CLASS__, 'forms_menu' ), 33 );
 		add_action( 'admin_menu', array( __CLASS__, 'menu_highlight' ), 15 );
 	}
 
@@ -70,7 +70,7 @@ class Main {
 			return;
 		}
 
-		add_filter( 'admin_body_class', array( __CLASS__, 'add_block_editor_body_class' ) );
+		add_filter( 'admin_body_class', 'noptin_add_block_editor_body_class' );
 
 		$config = include plugin_dir_path( __DIR__ ) . 'assets/js/form-editor.asset.php';
 		wp_enqueue_script(
@@ -257,11 +257,6 @@ class Main {
 		return array_merge( $custom_templates, $inbuilt_templates );
 	}
 
-	public static function add_block_editor_body_class( $classes ) {
-		$classes .= ' block-editor-page is-fullscreen-mode';
-		return $classes;
-	}
-
 	/**
 	 * Add forms menu item.
 	 */
@@ -269,7 +264,7 @@ class Main {
 		add_submenu_page(
 			'noptin',
 			esc_html__( 'Subscription Forms', 'newsletter-optin-box' ),
-			esc_html__( 'Subscription Forms', 'newsletter-optin-box' ),
+			esc_html__( 'Forms', 'newsletter-optin-box' ),
 			get_noptin_capability(),
 			'edit.php?post_type=noptin-form'
 		);

@@ -1002,28 +1002,6 @@ function noptin_dump( $data ) {
 }
 
 /**
- * Checks whether the automation rules table exists
- *
- * @deprecated 1.12.0
- * @since 1.3.3
- * @return bool
- */
-function noptin_automation_rules_table_exists() {
-	return true;
-}
-
-/**
- *  Returns the name of the automation rules table
- *
- * @deprecated 1.12.0
- * @since 1.3.3
- * @return string The name of our subscribers meta table
- */
-function get_noptin_automation_rules_table_name() {
-	return $GLOBALS['wpdb']->prefix . 'noptin_automation_rules';
-}
-
-/**
  *  Checks whether we should verify nonces when processing subscription forms.
  *
  * @since 1.3.3
@@ -2120,7 +2098,7 @@ function noptin_get_automation_rules( $args = array(), $to_return = 'results' ) 
 /**
  * Fetch an automation rule by rule ID.
  *
- * @param int|\Hizzle\Noptin\Automation_Rules\Automation_Rule|Noptin_Automation_Rule $automation_rule_id Automation Rule ID, or object.
+ * @param int|\Hizzle\Noptin\Automation_Rules\Automation_Rule $automation_rule_id Automation Rule ID, or object.
  * @return \Hizzle\Noptin\Automation_Rules\Automation_Rule|WP_Error Automation Rule object if found, error object if not found.
  */
 function noptin_get_automation_rule( $automation_rule_id = 0 ) {
@@ -2146,7 +2124,7 @@ function noptin_get_automation_rule( $automation_rule_id = 0 ) {
 /**
  * Deletes an automation rule.
  *
- * @param int|\Hizzle\Noptin\Automation_Rules\Automation_Rule|Noptin_Automation_Rule $automation_rule_id Automation Rule ID, or object.
+ * @param int|\Hizzle\Noptin\Automation_Rules\Automation_Rule $automation_rule_id Automation Rule ID, or object.
  * @return bool|WP_Error True on success, error object on failure.
  */
 function noptin_delete_automation_rule( $automation_rule_id ) {
@@ -2629,8 +2607,12 @@ function noptin_memory_exceeded() {
 		$memory_limit = '32G';
 	}
 
-	$memory_limit    = wp_convert_hr_to_bytes( $memory_limit ) * 0.90;
-	$current_memory  = memory_get_usage( true );
+	$memory_limit   = wp_convert_hr_to_bytes( $memory_limit ) * 0.90;
+	$current_memory = memory_get_usage( true );
 
 	return apply_filters( 'noptin_memory_exceeded', $current_memory >= $memory_limit );
+}
+
+function noptin_add_block_editor_body_class( $classes ) {
+	return $classes . ' block-editor-page is-fullscreen-mode';
 }

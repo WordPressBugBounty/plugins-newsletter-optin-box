@@ -46,15 +46,10 @@ class Menu {
 			return;
 		}
 
-		$count_html = \Noptin_COM_Updater::get_updates_count_html();
-
-		/* translators: %s: extensions count */
-		$menu_title = sprintf( __( 'Extensions %s', 'newsletter-optin-box' ), $count_html );
-
 		self::$hook_suffix = add_submenu_page(
 			'noptin',
-			esc_html__( 'Extensions', 'newsletter-optin-box' ),
-			$menu_title,
+			esc_html__( 'Add-ons', 'newsletter-optin-box' ),
+			esc_html__( 'Add-ons', 'newsletter-optin-box' ),
 			get_noptin_capability(),
 			'noptin-addons',
 			array( __CLASS__, 'render_admin_page' )
@@ -87,49 +82,46 @@ class Menu {
 			return;
 		}
 
-		$license = \Noptin_COM::get_active_license_key( true );
-		$path    = noptin()->plugin_path . 'build/Misc/assets/';
-		$url     = noptin()->plugin_url . 'build/Misc/assets/';
-		$config  = include $path . 'js/list.asset.php';
+		add_filter( 'admin_body_class', 'noptin_add_block_editor_body_class' );
 
-		wp_enqueue_media();
-
+		$config = include plugin_dir_path( __FILE__ ) . 'assets/js/workspace.asset.php';
 		wp_enqueue_script(
-			'noptin-list',
-			$url . 'js/list.js',
+			'noptin-workspace',
+			plugins_url( 'assets/js/workspace.js', __FILE__ ),
 			$config['dependencies'],
 			$config['version'],
 			true
 		);
 
 		// Localize the script.
-		$account_url = ( $license && ! is_wp_error( $license ) && ! empty( $license->account_url ) ) ? $license->account_url : 'my-account';
-		wp_localize_script(
-			'noptin-list',
-			'noptinList',
-			array(
-				'data' => array(
-					'isExtensions' => true,
-					'cardGroups'   => self::group_extensions( $license ),
-					'actions'      => array(
-						array(
-							'href'      => noptin_get_upsell_url( $account_url, 'view-account', 'extensionsscreen' ),
-							'variant'   => 'primary',
-							'text'      => esc_html__( 'Manage your account', 'newsletter-optin-box' ),
-							'className' => 'noptin-components-button__pink',
-						),
-					),
-					'brand'        => noptin()->white_label->get_details(),
-				),
-			)
+		$data = array(
+			'home_url'     => home_url(),
+			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'updatesNonce' => wp_create_nonce( 'updates' ),
+			'plugins'      => \Hizzle\Noptin\Onboarding\Menu::get_installed_plugins(),
+			'integrations' => \Hizzle\Noptin\Onboarding\Main::get_detected_integrations(),
+			'connections'  => \Hizzle\Noptin\Onboarding\Main::get_crm_connections(),
+			'license_key'  => \Noptin_COM::get_active_license_key(),
+			'ui'           => array(
+				'brand' => noptin()->white_label->get_details(),
+			),
+			'options'      => get_option( 'noptin_options', array() ),
+			'user_id'      => get_current_user_id(),
 		);
 
-		wp_set_script_translations( 'noptin-list', 'newsletter-optin-box', noptin()->plugin_path . 'languages' );
+		// Localize the script.
+		wp_add_inline_script(
+			'noptin-workspace',
+			'window.noptinWorkspace = ' . wp_json_encode( $data ) . ';',
+			'before'
+		);
+
+		wp_set_script_translations( 'noptin-workspace', 'newsletter-optin-box', noptin()->plugin_path . 'languages' );
 
 		// Load the css.
 		wp_enqueue_style(
-			'noptin-list',
-			$url . 'css/style-list.css',
+			'noptin-workspace',
+			plugins_url( 'assets/css/style-workspace.css', __FILE__ ),
 			array( 'wp-components' ),
 			$config['version']
 		);
@@ -309,6 +301,10 @@ class Menu {
 		}
 
 		foreach ( \Noptin_COM::get_connections() as $connection ) {
+			if ( is_array( $connection ) ) {
+				$connection = (object) $connection;
+			}
+
 			$groups['Connections'][ $connection->slug ] = array(
 				'name'        => $connection->slug,
 				'label'       => $connection->name,

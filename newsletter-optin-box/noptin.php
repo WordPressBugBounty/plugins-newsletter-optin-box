@@ -11,7 +11,7 @@
  * Description:     A very fast and lightweight WordPress marketing automation plugin
  * Author:          Noptin Newsletter
  * Author URI:      https://github.com/picocodes
- * Version:         4.1.8
+ * Version:         4.2.0
  * Text Domain:     newsletter-optin-box
  * License:         GPLv3
  * License URI:     http://www.gnu.org/licenses/gpl-3.0.txt
@@ -46,7 +46,7 @@ class Noptin {
 	 * @var   string Plugin version
 	 * @since 1.0.0
 	 */
-	public $version = '4.1.8';
+	public $version = '4.2.0';
 
 	/**
 	 * The current database version.
@@ -209,11 +209,6 @@ class Noptin {
 		// Load files / register the autoloader.
 		$this->load_files();
 
-		// If autoloading failed.
-		if ( ! class_exists( 'Noptin_Hooks' ) ) {
-			return;
-		}
-
 		// Set up globals.
 		$this->setup_globals();
 
@@ -242,7 +237,6 @@ class Noptin {
 		// Non-class files.
 		require_once $plugin_path . 'vendor/autoload.php';
 		require_once $plugin_path . 'includes/functions.php';
-		require_once $plugin_path . 'includes/subscriber.php';
 		require_once $plugin_path . 'includes/emails/class-manager.php';
 		require_once $plugin_path . 'includes/libraries/noptin-com/class-noptin-com.php';
 	}
@@ -263,9 +257,6 @@ class Noptin {
 
 		// Email manager.
 		$this->emails = new Noptin_Email_Manager();
-
-		// Hooks class.
-		$this->hooks = new Noptin_Hooks();
 	}
 
 	/**
