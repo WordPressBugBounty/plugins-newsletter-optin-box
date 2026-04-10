@@ -412,17 +412,26 @@ $editor_settings = array(
 			'id'       => 'formDesign',
 			'children' => array(
 
-				'formWidth'  => array(
+				'formWidth'     => array(
 					'el'      => 'unit',
 					'label'   => __( 'Preferred Width', 'newsletter-optin-box' ),
 					'tooltip' => __( 'The element will resize to 100% width on smaller devices', 'newsletter-optin-box' ),
 				),
 
-				'formHeight' => array(
+				'formHeight'    => array(
 					'el'    => 'unit',
 					'label' => __( 'Minimum Height', 'newsletter-optin-box' ),
 				),
 
+				'formBoxShadow' => array(
+					'type'  => 'text',
+					'el'    => 'input',
+					'label' => __( 'Box Shadow', 'newsletter-optin-box' ),
+				),
+				'formBorder'    => array(
+					'el'    => 'border',
+					'label' => __( 'Border', 'newsletter-optin-box' ),
+				),
 			),
 		),
 
@@ -541,6 +550,17 @@ $editor_settings = array(
 						),
 					),
 				),
+
+				'fieldBorder'     => array(
+					'el'         => 'border',
+					'label'      => __( 'Field Border', 'newsletter-optin-box' ),
+					'conditions' => array(
+						array(
+							'key'   => 'hideFields',
+							'value' => false,
+						),
+					),
+				),
 			),
 		),
 
@@ -619,13 +639,13 @@ $editor_settings = array(
 			'id'        => 'buttonDesign',
 			'listen_to' => '.noptin-form-field-submit',
 			'children'  => array(
-				'noptinButtonLabel' => array(
+				'noptinButtonLabel'  => array(
 					'type'  => 'text',
 					'el'    => 'input',
 					'label' => __( 'Text', 'newsletter-optin-box' ),
 				),
 
-				'buttonPosition'    => array(
+				'buttonPosition'     => array(
 					'el'         => 'toggle_group',
 					'options'    => array(
 						'block' => __( 'Block', 'newsletter-optin-box' ),
@@ -639,6 +659,17 @@ $editor_settings = array(
 							'value' => false,
 						),
 					),
+				),
+
+				'noptinButtonRadius' => array(
+					'el'    => 'unit',
+					'label' => __( 'Border Radius', 'newsletter-optin-box' ),
+				),
+
+				'noptinButtonShadow' => array(
+					'type'  => 'text',
+					'el'    => 'input',
+					'label' => __( 'Box Shadow', 'newsletter-optin-box' ),
 				),
 			),
 		),
@@ -868,37 +899,74 @@ $editor_settings = array(
 				array(
 					'key'   => 'noptinFormBg',
 					'label' => __( 'Background', 'newsletter-optin-box' ),
+					'tabs'  => array(
+						array(
+							'key'   => 'noptinFormBg',
+							'label' => __( 'Color', 'newsletter-optin-box' ),
+						),
+						array(
+							'key'        => 'noptinFormBgGradient',
+							'label'      => __( 'Gradient', 'newsletter-optin-box' ),
+							'isGradient' => true,
+						),
+					),
 				),
 				array(
-					'key'   => 'descriptionColor',
+					'key'   => 'noptinTextColor',
 					'label' => __( 'Text', 'newsletter-optin-box' ),
-				),
-				array(
-					'key'        => 'titleColor',
-					'label'      => __( 'Heading', 'newsletter-optin-box' ),
-					'conditions' => array(
+					'tabs'  => array(
 						array(
-							'key'   => 'hideTitle',
-							'value' => false,
+							'key'   => 'descriptionColor',
+							'label' => __( 'Description', 'newsletter-optin-box' ),
+						),
+						array(
+							'key'        => 'titleColor',
+							'label'      => __( 'Heading', 'newsletter-optin-box' ),
+							'conditions' => array(
+								array(
+									'key'   => 'hideTitle',
+									'value' => false,
+								),
+							),
+						),
+						array(
+							'key'        => 'prefixColor',
+							'label'      => __( 'Prefix', 'newsletter-optin-box' ),
+							'conditions' => array(
+								array(
+									'key'   => 'hidePrefix',
+									'value' => false,
+								),
+							),
+						),
+						array(
+							'key'        => 'noteColor',
+							'label'      => __( 'Note', 'newsletter-optin-box' ),
+							'conditions' => array(
+								array(
+									'key'   => 'hideNote',
+									'value' => false,
+								),
+							),
 						),
 					),
 				),
 				array(
-					'key'        => 'prefixColor',
-					'label'      => __( 'Prefix', 'newsletter-optin-box' ),
-					'conditions' => array(
+					'key'        => 'fieldBg',
+					'label'      => __( 'Fields', 'newsletter-optin-box' ),
+					'tabs'       => array(
 						array(
-							'key'   => 'hidePrefix',
-							'value' => false,
+							'key'   => 'fieldBg',
+							'label' => __( 'Background', 'newsletter-optin-box' ),
+						),
+						array(
+							'key'   => 'fieldTextColor',
+							'label' => __( 'Text', 'newsletter-optin-box' ),
 						),
 					),
-				),
-				array(
-					'key'        => 'noteColor',
-					'label'      => __( 'Note', 'newsletter-optin-box' ),
 					'conditions' => array(
 						array(
-							'key'   => 'hideNote',
+							'key'   => 'hideFields',
 							'value' => false,
 						),
 					),
@@ -912,18 +980,17 @@ $editor_settings = array(
 							'label' => __( 'Background', 'newsletter-optin-box' ),
 						),
 						array(
+							'key'        => 'noptinButtonBgGradient',
+							'label'      => __( 'Gradient', 'newsletter-optin-box' ),
+							'isGradient' => true,
+						),
+						array(
 							'key'   => 'noptinButtonColor',
 							'label' => __( 'Text', 'newsletter-optin-box' ),
 						),
 					),
 				),
 			),
-		),
-
-		// Form border.
-		'formBorder'  => array(
-			'el'    => 'border',
-			'label' => __( 'Border', 'newsletter-optin-box' ),
 		),
 	),
 	'integrations' => array(

@@ -36,13 +36,6 @@ class Schema {
 				'description' => __( 'Unique identifier for this resource.', 'newsletter-optin-box' ),
 			),
 
-			'name'  => array(
-				'type'        => 'VARCHAR',
-				'length'      => 200,
-				'description' => __( "The subscriber's name.", 'newsletter-optin-box' ),
-				'is_dynamic'  => true,
-			),
-
 			'email' => array(
 				'type'        => 'VARCHAR',
 				'length'      => 255,
@@ -54,7 +47,7 @@ class Schema {
 		// Custom fields.
 		foreach ( get_noptin_custom_fields() as $custom_field ) {
 
-			// Skip first name, last name and email.
+			// Skip email.
 			if ( ! in_array( $custom_field['merge_tag'], array( 'email' ), true ) ) {
 				$props = array_merge( $props, noptin_convert_custom_field_to_schema( $custom_field ) );
 			}
