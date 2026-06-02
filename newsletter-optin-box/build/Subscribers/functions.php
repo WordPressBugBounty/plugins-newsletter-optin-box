@@ -1259,15 +1259,15 @@ function get_noptin_subscriber_smart_tag( $merge_tag ) {
  * @return array
  */
 function get_noptin_subscriber_filters() {
+	$prepared = array();
 
-	return apply_filters(
-		'noptin_subscriber_filters',
-		wp_list_filter(
-			get_noptin_subscriber_smart_tags(),
-			array( 'options' => false ),
-			'NOT'
-		)
-	);
+	foreach ( get_noptin_subscriber_smart_tags() as $merge_tag => $data ) {
+		if ( false !== $data['options'] ) {
+			$prepared[ $merge_tag ] = $data;
+		}
+	}
+
+	return apply_filters( 'noptin_subscriber_filters', $prepared );
 }
 
 /**
@@ -1388,4 +1388,21 @@ function noptin_get_subscriber_statuses() {
 			'blocked'      => __( 'Blocked', 'newsletter-optin-box' ),
 		)
 	);
+}
+
+/**
+ * Flushes all subscriber-related object caches.
+ *
+ * Clears both the main record cache group and the WP metadata cache group
+ * so that subsequent reads via noptin_get_subscriber() always return fresh data.
+ */
+function noptin_flush_subscriber_caches() {
+	if ( function_exists( 'wp_cache_supports' ) && wp_cache_supports( 'flush_group' ) ) {
+		// Main record cache (noptin_subscribers).
+		wp_cache_flush_group( 'noptin_subscribers' );
+		// WP metadata API cache (get_metadata uses <meta_type>_meta as group).
+		wp_cache_flush_group( 'noptin_subscriber_meta' );
+	} else {
+		wp_cache_flush();
+	}
 }

@@ -37,6 +37,11 @@ class Automation_Rule extends \Hizzle\Store\Record {
 			$this->set_trigger_id( sanitize_text_field( $_GET['noptin-trigger'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$this->set_action_id( sanitize_text_field( $_GET['noptin-action'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
+			// Pre-fill the parent rule ID when branching from an existing rule.
+			if ( ! empty( $_GET['noptin-parent-id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$this->set_parent_id( absint( $_GET['noptin-parent-id'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			}
+
 			// Set default action and trigger settings.
 			$this->set_trigger_settings( array( 'conditional_logic' => noptin_get_default_conditional_logic() ) );
 			$this->set_action_settings( array() );
@@ -174,8 +179,9 @@ class Automation_Rule extends \Hizzle\Store\Record {
 	 */
 	public function get_conditional_logic() {
 		$conditional_logic = $this->get_trigger_setting( 'conditional_logic' );
+		$conditional_logic = is_array( $conditional_logic ) ? $conditional_logic : array();
 
-		return is_array( $conditional_logic ) ? $conditional_logic : array();
+		return array_merge( noptin_get_default_conditional_logic(), $conditional_logic );
 	}
 
 	/**
@@ -246,6 +252,86 @@ class Automation_Rule extends \Hizzle\Store\Record {
 	}
 
 	/**
+	 * Gets the workflow display name.
+	 *
+	 * @param string $context What the value is for. Valid values are 'view' and 'edit'.
+	 * @return string
+	 */
+	public function get_formatted_workflow_name() {
+		$name = $this->get_prop( 'workflow_name' );
+
+		if ( ! empty( $name ) ) {
+			return $name;
+		}
+
+		$trigger = $this->get_trigger();
+		$action  = $this->get_action();
+
+		$trigger_name = $trigger ? $trigger->get_name() : $this->get_trigger_id();
+		$action_name  = $action ? $action->get_name() : $this->get_action_id();
+
+		$names = array_filter( array( $trigger_name, $action_name ) );
+		return implode( ' → ', $names );
+	}
+
+	/**
+	 * Gets the workflow name.
+	 *
+	 * @param string $context What the value is for. Valid values are 'view' and 'edit'.
+	 * @return string
+	 */
+	public function get_workflow_name( $context = 'view' ) {
+		return $this->get_prop( 'workflow_name', $context );
+	}
+
+	/**
+	 * Sets the workflow name.
+	 *
+	 * @param string $value Workflow name.
+	 */
+	public function set_workflow_name( $value ) {
+		$this->set_prop( 'workflow_name', sanitize_text_field( $value ) );
+	}
+
+	/**
+	 * Gets the parent rule ID.
+	 *
+	 * @param string $context What the value is for. Valid values are 'view' and 'edit'.
+	 * @return int
+	 */
+	public function get_parent_id( $context = 'view' ) {
+		return absint( $this->get_prop( 'parent_id', $context ) );
+	}
+
+	/**
+	 * Sets the parent rule ID.
+	 *
+	 * @param int $value Parent rule ID.
+	 */
+	public function set_parent_id( $value ) {
+		$this->set_prop( 'parent_id', absint( $value ) );
+	}
+
+	/**
+	 * Gets the rule priority.
+	 *
+	 * @param string $context What the value is for. Valid values are 'view' and 'edit'.
+	 * @return int
+	 */
+	public function get_priority( $context = 'view' ) {
+		return absint( $this->get_prop( 'priority', $context ) );
+	}
+
+	/**
+	 * Sets the rule priority.
+	 *
+	 * @param int $value Rule priority. Lower values run first.
+	 */
+	public function set_priority( $value ) {
+		$this->set_prop( 'priority', absint( $value ) );
+	}
+
+	/**
 	 * Returns the number of times this rule has been run.
 	 *
 	 * @param string $context What the value is for. Valid values are 'view' and 'edit'.
@@ -304,6 +390,41 @@ class Automation_Rule extends \Hizzle\Store\Record {
 	}
 
 	/**
+	 * Ensure the status, trigger_id, and trigger settings (minus conditional logic) mirror that of the parent rule.
+	 *
+	 * @param Automation_Rule $rule The rule to mirror to parent.
+	 * @param Automation_Rule $parent_rule The parent rule to mirror from.
+	 */
+	private static function mirror_to_parent( &$rule, $parent_rule ) {
+		// Abort if no parent.
+		if ( ! is_a( $parent_rule, self::class ) || ! $parent_rule->exists() ) {
+			return false;
+		}
+
+		// Abort if no child.
+		// Here we don't check for exists.
+		if ( ! is_a( $rule, self::class ) ) {
+			return false;
+		}
+
+		// Abort if child rule === parent rule to prevent self-reference and circular parent chains.
+		if ( $rule->get_id() === $parent_rule->get_id() ) {
+			return false;
+		}
+
+		$rule->set_status( $parent_rule->get_status() );
+		$rule->set_trigger_id( $parent_rule->get_trigger_id() );
+
+		$parent_trigger_settings = $parent_rule->get_trigger_settings();
+
+		$parent_trigger_settings['conditional_logic'] = $rule->get_conditional_logic();
+
+		$rule->set_trigger_settings( $parent_trigger_settings );
+
+		return true;
+	}
+
+	/**
 	 * Saves the rule.
 	 *
 	 * @return int|\WP_Error
@@ -315,6 +436,24 @@ class Automation_Rule extends \Hizzle\Store\Record {
 			$this->set_created_at( time() );
 		}
 
+		// If we have no uuid, generate one.
+		if ( ! $this->get_meta( 'uuid' ) ) {
+			$this->update_meta( 'uuid', wp_generate_uuid4() );
+		}
+
+		// If we have a parent rule, ensure the status, trigger_id, and trigger settings (minus conditional logic) mirror that of the parent rule.
+		if ( $this->get_parent_id() ) {
+			$parent_rule = noptin_get_automation_rule( $this->get_parent_id() );
+			self::mirror_to_parent( $this, $parent_rule );
+		}
+
+		// And vice versa.
+		foreach ( $this->get_children() as $child_rule ) {
+			if ( self::mirror_to_parent( $child_rule, $this ) ) {
+				$child_rule->save();
+			}
+		}
+
 		return parent::save();
 	}
 
@@ -324,6 +463,16 @@ class Automation_Rule extends \Hizzle\Store\Record {
 	 * @return int|\WP_Error
 	 */
 	public function delete( $fire_actions = true ) {
+		// Abort if rule doesn't exist.
+		if ( ! $this->exists() ) {
+			return new \WP_Error( 'noptin_automation_rule_not_found', 'Automation rule not found.' );
+		}
+
+		// Delete child rules first.
+		foreach ( $this->get_children() as $child_rule ) {
+			$child_rule->delete( $fire_actions );
+		}
+
 		$action = $this->get_action();
 
 		if ( ! empty( $action ) && $fire_actions ) {
@@ -483,8 +632,14 @@ class Automation_Rule extends \Hizzle\Store\Record {
 	 */
 	public function maybe_run( $subject, $trigger, $action, $args ) {
 
+		// todo: Find a way to continue even if there's no action.
+		// This allows us to run child rules even if the parent rule has no action or an invalid action.
+		if ( empty( $trigger ) || empty( $action ) ) {
+			return false;
+		}
+
 		// Check if the rule is valid.
-		if ( ! $trigger->is_rule_valid_for_args( $this, $args, $subject, $action ) ) {
+		if ( ! $this->get_status() || ! $trigger->is_rule_valid_for_args( $this, $args, $subject, $action ) ) {
 			log_noptin_message( 'Automation rule trigger "' . $trigger->get_name() . '" not valid for args.' );
 
 			return false;
@@ -567,7 +722,7 @@ class Automation_Rule extends \Hizzle\Store\Record {
 					$map_fields[ $key ] = $data;
 					unset( $action_settings[ $key ] );
 				} elseif ( ! empty( $data['settings'] ) && empty( $data['el'] ) ) {
-					$data['prop'] = $data['prop'] ?? 'action_settings';
+					$data['prop']           = $data['prop'] ?? 'action_settings';
 					$other_sections[ $key ] = $data;
 					unset( $action_settings[ $key ] );
 					unset( $original_action_settings[ $key ] );
@@ -637,5 +792,155 @@ class Automation_Rule extends \Hizzle\Store\Record {
 		$prepared['settings'] = $settings;
 
 		return $prepared;
+	}
+
+	/**
+	 * Returns the rule's children.
+	 *
+	 * @return Automation_Rule[]
+	 */
+	public function get_children() {
+		if ( ! $this->exists() ) {
+			return array();
+		}
+
+		$children = noptin_get_automation_rules(
+			array(
+				'parent_id' => $this->get_id(),
+				'orderby'   => array(
+					'priority' => 'ASC',
+					'id'       => 'ASC',
+				),
+			)
+		);
+
+		if ( empty( $children ) || is_wp_error( $children ) ) {
+			return array();
+		}
+
+		return $children;
+	}
+
+	/**
+	 * Returns the action info.
+	 *
+	 * @return string
+	 */
+	public function get_trigger_info() {
+		$trigger = $this->get_trigger();
+
+		if ( $trigger ) {
+			return wp_kses_post( $trigger->get_rule_table_description( $this ) );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Returns the action info.
+	 *
+	 * @return string
+	 */
+	public function get_action_info() {
+		$action = $this->get_action();
+
+		if ( $action ) {
+			return wp_kses_post( $action->get_rule_table_description( $this ) );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Returns the tree map, but only if this is a root rule (i.e. has no parent).
+	 *
+	 * @return string
+	 */
+	public function get_workflow_tree() {
+		if ( $this->get_parent_id() > 0 ) {
+			return false;
+		}
+
+		return $this->to_tree_map();
+	}
+
+	/**
+	 * Converts the rule and its children into a flat tree map.
+	 *
+	 * @param array<int, bool> $visited Visited rule IDs.
+	 * @param string|int       $parent_uuid Parent rule UUID, or 0 for a true root.
+	 *
+	 * @return array<string, array{id: int, parent_id: string|int, children: string[], data?: array}> Tree map of the rule and its children.
+	 */
+	public function to_tree_map( $visited = array(), $parent_uuid = 0 ) {
+		$id = (int) $this->get_id();
+
+		if ( $id && isset( $visited[ $id ] ) ) {
+			return array();
+		}
+
+		if ( $id ) {
+			$visited[ $id ] = true;
+		}
+
+		$uuid = $this->get_meta( 'uuid' );
+
+		if ( ! $uuid ) {
+			$uuid = wp_generate_uuid4();
+		}
+
+		$resolved_parent_uuid = $parent_uuid;
+
+		if ( empty( $resolved_parent_uuid ) && $this->get_parent_id() > 0 ) {
+			$parent = noptin_get_automation_rule( $this->get_parent_id() );
+
+			if ( $parent && ! is_wp_error( $parent ) && $parent->exists() ) {
+				$resolved_parent_uuid = $parent->get_meta( 'uuid' );
+
+				if ( ! $resolved_parent_uuid ) {
+					$resolved_parent_uuid = wp_generate_uuid4();
+				}
+			}
+		}
+
+		$map = array(
+			$uuid => array(
+				'id'        => $id,
+				'parent_id' => $resolved_parent_uuid,
+				'children'  => array(),
+				'action_id' => $this->get_action_id(),
+			),
+		);
+
+		if ( ! $this->exists() ) {
+			// Provide the unsaved rule data inline so the editor can bootstrap
+			// directly from treeMap without needing a separate automationRule payload.
+			$map[ $uuid ]['data'] = array(
+				'trigger_id'       => $this->get_trigger_id(),
+				'trigger_settings' => $this->get_trigger_settings(),
+				'action_id'        => $this->get_action_id(),
+				'action_settings'  => $this->get_action_settings(),
+			);
+
+			return $map;
+		}
+
+		foreach ( $this->get_children() as $child ) {
+			$child_map = $child->to_tree_map( $visited, $uuid );
+
+			if ( empty( $child_map ) ) {
+				continue;
+			}
+
+			$child_uuid = array_key_first( $child_map );
+
+			if ( $child_uuid ) {
+				$map[ $uuid ]['children'][] = $child_uuid;
+			}
+
+			$map = array_replace( $map, $child_map );
+		}
+
+		return $map;
 	}
 }

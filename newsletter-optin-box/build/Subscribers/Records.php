@@ -65,6 +65,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 		add_action( 'check_noptin_subscriber_anniversary', array( $this, 'check_anniversary' ) );
 
 		// Subscribers table.
+		add_filter( 'noptin_subscribers_submenu', array( __CLASS__, 'filter_subscribers_collection_nav_submenus' ) );
 		add_filter( 'hizzle_rest_noptin_subscribers_admin_app_routes', array( __CLASS__, 'filter_subscribers_collection_admin_routes' ) );
 		add_filter( 'hizzle_rest_noptin_subscribers_collection_js_params', array( __CLASS__, 'filter_subscribers_collection_js_params' ) );
 		add_filter( 'hizzle_rest_noptin_subscribers_record_tabs', array( __CLASS__, 'filter_subscribers_collection_record_tabs' ), 1000 );
@@ -100,7 +101,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 		return array_combine( $tags, $tags );
 	}
 
-	private function subscriber_fields( $partial = false ) {
+	public static function subscriber_fields( $partial = false ) {
 		$fields = array(
 			'tags' => array(
 				'label'    => __( 'Tags', 'newsletter-optin-box' ),
@@ -113,7 +114,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 		foreach ( get_noptin_subscriber_filters() as $merge_tag => $options ) {
 
 			// Skip if no options.
-			if ( empty( $options['options'] ) || in_array( $merge_tag, array( 'confirmed', 'source' ), true ) ) {
+			if ( ! is_array( $options['options'] ) || in_array( $merge_tag, array( 'confirmed', 'source' ), true ) ) {
 				continue;
 			}
 
@@ -1365,7 +1366,44 @@ class Records extends \Hizzle\Noptin\Objects\People {
 			),
 		);
 
+		// Field Manager.
+		foreach ( self::subscriber_fields( true ) as $merge_tag => $field ) {
+			if ( in_array( $merge_tag, Fields_REST_API::SKIP_FIELDS, true ) ) {
+				continue;
+			}
+
+			$routes[ "noptin/subscribers/{$merge_tag}_manager" ] = array(
+				'title' => empty( $field['label'] ) ? $merge_tag : $field['label'],
+				'href'  => add_query_arg(
+					array(
+						'noptin_cf' => $merge_tag,
+						'page'      => 'noptin-subscribers',
+					),
+					admin_url( 'admin.php' )
+				),
+			);
+		}
+
 		return $routes;
+	}
+
+	/**
+	 * Filters the subscriber's collection submenus.
+	 *
+	 * @param array $submenus
+	 * @return array
+	 */
+	public static function filter_subscribers_collection_nav_submenus( $submenus ) {
+		$current_cf = isset( $_GET['noptin_cf'] ) ? sanitize_text_field( wp_unslash( $_GET['noptin_cf'] ) ) : '';
+		foreach ( self::filter_subscribers_collection_admin_routes( array() ) as $route => $menu ) {
+			$submenus[ $route ] = array(
+				'text'      => $menu['title'],
+				'href'      => $menu['href'],
+				'isPressed' => $current_cf && strpos( $menu['href'], "noptin_cf={$current_cf}" ) !== false,
+			);
+		}
+
+		return $submenus;
 	}
 
 	/**
