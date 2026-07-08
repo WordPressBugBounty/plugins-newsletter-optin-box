@@ -39,6 +39,9 @@ class Main {
 
 		// Init default actions.
 		Actions\Main::init();
+
+		// Init default triggers.
+		add_action( 'noptin_email_manager_init', array( Triggers\Main::class, 'init' ) );
 	}
 
 	/**

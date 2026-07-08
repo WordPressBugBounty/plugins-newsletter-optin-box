@@ -491,8 +491,8 @@ class Automation_Rule extends \Hizzle\Store\Record {
 
 		$edit_url = add_query_arg(
 			array(
-				'page'                        => 'noptin-automation-rules',
-				'noptin_edit_automation_rule' => $this->get_id(),
+				'page'          => 'noptin-automation-rules',
+				'hizzlewp_path' => '/edit/' . $this->get_id(),
 			),
 			admin_url( 'admin.php' )
 		);
@@ -582,7 +582,6 @@ class Automation_Rule extends \Hizzle\Store\Record {
 		$prepared_options = array();
 
 		foreach ( $settings as $key => $args ) {
-
 			$default  = isset( $args['default'] ) ? $args['default'] : '';
 			$is_array = is_array( $default );
 			$value    = isset( $options[ $key ] ) ? $options[ $key ] : $default;

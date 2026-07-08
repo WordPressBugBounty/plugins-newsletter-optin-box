@@ -518,8 +518,10 @@ class Main {
 
 		$args = wp_parse_args( $args, $defaults );
 
+		$skip_duplicate_check = defined( 'NOPTIN_DISABLE_TASK_DUPLICATE_CHECK' ) && NOPTIN_DISABLE_TASK_DUPLICATE_CHECK;
+
 		// Ensure the same task is not scheduled twice in the same request.
-		if ( in_array( $args['args_hash'], self::$scheduled_tasks, true ) ) {
+		if ( ! $skip_duplicate_check && in_array( $args['args_hash'], self::$scheduled_tasks, true ) ) {
 			return new \WP_Error( 'noptin_task_already_scheduled', 'Task already scheduled.' );
 		}
 
@@ -555,7 +557,9 @@ class Main {
 			noptin_error_log( 'Error scheduling task: ' . $result->get_error_message() );
 		}
 
-		self::$scheduled_tasks[] = $args['args_hash'];
+		if ( ! $skip_duplicate_check ) {
+			self::$scheduled_tasks[] = $args['args_hash'];
+		}
 
 		return $task;
 	}
@@ -605,16 +609,22 @@ class Main {
 			$delay  = 0;
 		}
 
+		$serialized_args = $trigger->serialize_trigger_args( $args );
+
+		if ( isset( $args['provided_collections'] ) && ! isset( $serialized_args['provided_collections'] ) ) {
+			$serialized_args['provided_collections'] = $args['provided_collections'];
+		}
+
 		// Create the task.
 		$task = self::create(
 			array(
 				'hook'           => 'noptin_run_automation_rule',
-				'args'           => $trigger->serialize_trigger_args( $args ),
+				'args'           => $serialized_args,
 				'date_scheduled' => time() + ( $delay ? $delay : - MINUTE_IN_SECONDS ), // If no delay, set to expire 1 minute ago so it runs immediately.
 				'subject'        => $trigger->get_subject_email( $subject, $rule, $args ),
 				'status'         => $status,
 				'primary_id'     => $rule->get_id(),
-				'secondary_id'   => $args['automation_rule_secondary_id'] ?? null,
+				'secondary_id'   => $args['automation_rule_secondary_id'] ?? $rule->get_action_id(),
 				'lookup_key'     => $args['automation_rule_lookup_key'] ?? $trigger->get_id(),
 			)
 		);
