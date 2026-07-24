@@ -15,10 +15,17 @@ defined( 'ABSPATH' ) || exit;
 class Path extends Action {
 
 	/**
+	 * The task lookup key.
+	 *
+	 * @var string
+	 */
+	const LOOKUP_KEY = 'path';
+
+	/**
 	 * @inheritdoc
 	 */
 	public function get_id() {
-		return 'path';
+		return self::LOOKUP_KEY;
 	}
 
 	/**
@@ -62,6 +69,13 @@ class Path extends Action {
 				'description' => __( 'Choose whether to execute every path whose conditional logic is met, or stop after the first successful match.', 'noptin-addons-pack' ),
 			),
 		);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function has_wizard_settings() {
+		return true;
 	}
 
 	/**

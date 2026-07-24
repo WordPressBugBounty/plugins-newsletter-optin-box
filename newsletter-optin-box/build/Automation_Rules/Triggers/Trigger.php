@@ -2,6 +2,8 @@
 
 namespace Hizzle\Noptin\Automation_Rules\Triggers;
 
+use Hizzle\Noptin\Automation_Rules\Actions\Path;
+
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -74,6 +76,11 @@ abstract class Trigger extends \Hizzle\Noptin\Automation_Rules\Trigger_Action {
 
 	/**
 	 * Returns an array of known smart tags with callbacks removed.
+	 *
+	 * Merge tags can set `primary` to true, a custom field label, or an array of
+	 * setting overrides, to have the add-new wizard request their value and
+	 * create initial conditional logic for triggers whose has_wizard_settings()
+	 * method returns true. Primary fields are always optional filters.
 	 *
 	 * @since 1.12.0
 	 * @return array
@@ -425,8 +432,8 @@ abstract class Trigger extends \Hizzle\Noptin\Automation_Rules\Trigger_Action {
 		}
 
 		$conditional_logic = $rule->get_conditional_logic();
-		// Abort if conditional logic is not set.
-		if ( empty( $conditional_logic['enabled'] ) || empty( $args['smart_tags'] ) || empty( $conditional_logic['rules'] ) || ! is_array( $conditional_logic['rules'] ) ) {
+		// Abort if conditional logic is not set or not needed.
+		if ( $rule->get_action_id() === Path::LOOKUP_KEY || empty( $conditional_logic['enabled'] ) || empty( $args['smart_tags'] ) || empty( $conditional_logic['rules'] ) || ! is_array( $conditional_logic['rules'] ) ) {
 			return true;
 		}
 
