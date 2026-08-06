@@ -113,7 +113,14 @@ class Menu {
 					'saved'       => array_merge(
 						get_noptin_options(),
 						array(
-							'custom_fields' => array_values( get_noptin_custom_fields() ),
+							'custom_fields' => array_values(
+								array_filter(
+									get_noptin_custom_fields(),
+									static function ( $field ) {
+										return empty( $field['dynamic'] );
+									}
+								)
+							),
 						)
 					),
 					'brand'       => noptin()->white_label->get_details(),
@@ -269,6 +276,12 @@ class Menu {
 						'placeholder' => '#1a82e2',
 						'default'     => '#1a82e2',
 						'description' => __( 'Used as the link color and button background.', 'newsletter-optin-box' ),
+					),
+					'actions_page_css' => array(
+						'el'          => 'textarea',
+						'label'       => __( 'Actions Page CSS', 'newsletter-optin-box' ),
+						'placeholder' => '#noptin-actions-body { color: #1a202c; }',
+						'description' => __( 'Custom CSS for subscription confirmation, unsubscribe, and other action pages.', 'newsletter-optin-box' ),
 					),
 				),
 			),
