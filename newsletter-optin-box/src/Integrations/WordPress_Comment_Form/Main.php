@@ -28,7 +28,35 @@ class Main extends \Hizzle\Noptin\Integrations\Checkbox_Integration {
 		$this->name   = __( 'Comment Form', 'newsletter-optin-box' );
 		$this->url    = 'getting-email-subscribers/wordpress-comment-forms/';
 
+		add_action( 'noptin_init', __CLASS__ . '::register_objects' );
+
 		parent::__construct();
+	}
+
+	/**
+	 * Registers custom objects.
+	 *
+	 * @since 3.0.0
+	 */
+	public static function register_objects() {
+		\Hizzle\Noptin\Objects\Store::add(
+			new Commentors(
+				'comment_author',
+				__( 'Comment Authors', 'newsletter-optin-box' ),
+				__( 'Comment Author', 'newsletter-optin-box' ),
+				'comment'
+			)
+		);
+		\Hizzle\Noptin\Objects\Store::add(
+			new Commentors(
+				'reply_author',
+				__( 'Reply Authors', 'newsletter-optin-box' ),
+				__( 'Reply Author', 'newsletter-optin-box' ),
+				'reply'
+			)
+		);
+		\Hizzle\Noptin\Objects\Store::add( new Comments() );
+		\Hizzle\Noptin\Objects\Store::add( new Replies() );
 	}
 
 	/**

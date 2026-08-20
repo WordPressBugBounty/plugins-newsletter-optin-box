@@ -11,7 +11,7 @@
  * Description:     A very fast and lightweight WordPress marketing automation plugin
  * Author:          Noptin Newsletter
  * Author URI:      https://github.com/picocodes
- * Version:         4.3.5
+ * Version:         4.3.6
  * Text Domain:     newsletter-optin-box
  * License:         GPLv3
  * License URI:     http://www.gnu.org/licenses/gpl-3.0.txt
@@ -46,7 +46,7 @@ class Noptin {
 	 * @var   string Plugin version
 	 * @since 1.0.0
 	 */
-	public $version = '4.3.5';
+	public $version = '4.3.6';
 
 	/**
 	 * The current database version.
@@ -142,7 +142,7 @@ class Noptin {
 	/**
 	 * The main admin class..
 	 *
-	 * @var Noptin_Admin
+	 * @var \Hizzle\Noptin\Admin\Main
 	 * @since       1.2.9
 	 */
 	public $admin;
@@ -236,7 +236,6 @@ class Noptin {
 
 		// Non-class files.
 		require_once $plugin_path . 'vendor/autoload.php';
-		require_once $plugin_path . 'includes/functions.php';
 		require_once $plugin_path . 'includes/emails/class-manager.php';
 		require_once $plugin_path . 'includes/libraries/noptin-com/class-noptin-com.php';
 	}
@@ -329,10 +328,6 @@ class Noptin {
 		 */
 		do_action( 'before_noptin_init', $this );
 
-		// Init the admin.
-		$this->admin = Noptin_Admin::instance();
-		$this->admin->init();
-
 		// Actions page controller.
 		$this->actions_page = new Noptin_Page();
 
@@ -375,7 +370,6 @@ class Noptin {
 		// And an array of possible locations in order of importance;
 		$locations = array(
 			"$plugin_path/includes",
-			"$plugin_path/includes/admin",
 			"$plugin_path/includes/integrations",
 			"$plugin_path/includes/automation-rules",
 			"$plugin_path/includes/automation-rules/actions",
@@ -406,10 +400,10 @@ class Noptin {
 	/**
      * Returns the new DB manager.
      *
-     * @return \Hizzle\Noptin\DB\Main
+     * @return \Hizzle\Store\Main
      */
 	public function db() {
-		return \Hizzle\Noptin\DB\Main::instance();
+		return \Hizzle\Store\Main::instance( 'noptin', 'subscribers' );
 	}
 
 	/**
