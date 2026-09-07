@@ -1600,10 +1600,10 @@ class Email {
 
 		// Return true if not yet saved.
 		if ( ! $this->exists() ) {
-			return Main::current_user_can_create_new_campaign();
+			return Main::current_user_can_create_new_campaign( $this->type );
 		}
 
-		return current_user_can( 'edit_post', $this->id );
+		return current_user_can_manage_noptin_campaign_type( $this->type );
 	}
 
 	/**
@@ -1618,7 +1618,16 @@ class Email {
 			return false;
 		}
 
-		return current_user_can( 'delete_post', $this->id );
+		return current_user_can_manage_noptin_campaign_type( $this->type );
+	}
+
+	/**
+	 * Checks if the current user can publish this email.
+	 *
+	 * @return bool
+	 */
+	public function current_user_can_publish() {
+		return $this->exists() && $this->current_user_can_edit() && current_user_can( 'publish_post', $this->id );
 	}
 
 	/**
