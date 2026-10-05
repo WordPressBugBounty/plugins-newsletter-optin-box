@@ -1,21 +1,24 @@
-=== Simple Newsletter Plugin - Noptin ===
+=== Noptin – Newsletter, New Post Notifications & Email Automation ===
 Contributors: picocodes, mutendebrian
 Tags: newsletter, subscribe, newsletter subscribers, notify, woocommerce
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Version: 4.3.10
-Stable tag: 4.3.10
+Version: 4.4.0
+Stable tag: 4.4.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Donate link: https://noptin.com/pricing/?utm_source=wp-repo&utm_medium=donate&utm_campaign=readme
 
-A fast, GDPR-compliant newsletter plugin. Collect newsletter subscribers, let users subscribe to new post notifications, and send newsletters. ★★★★★
+Fast, GDPR-friendly newsletter plugin. Send new post notifications, collect unlimited subscribers, automate emails, and grow your audience. ★★★★★
 
 == Description ==
 
 **Noptin is a fast, lightweight newsletter and email marketing plugin for WordPress.**
 ★★★★★<br>
+
+Noptin is a WordPress newsletter plugin built for publishers, bloggers, stores, and sites that want to automatically notify subscribers when new content is published.
+Send new post notifications, newsletters, post digests, and automated emails directly from WordPress while keeping full control of your subscriber list.
 
 It helps you collect subscribers, grow your newsletter audience, and send newsletters and notifications directly from your website, without relying on expensive third-party email services.
 
@@ -105,18 +108,33 @@ Let users sign up for your newsletter using any of the following email opt-in fo
 
 Noptin plays nicely with the tools you already use:
 
-- **Form Builders:** Gravity Forms, Contact Form 7 (CF7), WPForms, Ninja Forms, Everest Forms, Fluent Forms, Forminator, Formidable Forms, HappyForms, JetFormBuilder, MetForm, weForms, WordPress registration forms, WordPress comment forms, WSForm, Convert Pro.
-- **Page Builders:** Elementor, Divi, Beaver Builder, Bricks Builder.
-- **E-Commerce:** WooCommerce, Easy Digital Downloads (EDD).
-- **Membership:** MemberPress, Simple Membership, Paid Memberships Pro (PMPro), SureMembers, WP eMember.
-- **Others:** Advanced Ads, ACF, Pods, Akismet, GeoDirectory, Toolset Types, Modern Events Calendar, The Events Calendar, myCRED, WPLoyalty, Polylang, WPML, WP Job Manager (WPJM), WP Job Openings, WP Recipe Maker.
+- **Advertising:** Advanced Ads.
+- **Community:** bbPress, FluentCommunity.
+- **Custom Fields:** Advanced Custom Fields, Meta Box, Pods, Toolset Types.
+- **Customer Support:** Fluent Support.
+- **Directories:** Directorist, GeoDirectory.
+- **eCommerce:** Charitable, Easy Digital Downloads, Hizzle Pay, WooCommerce.
+- **Events:** Events Manager, Modern Events Calendar, The Events Calendar.
+- **Forms:** Beaver Builder, Bit Form, Bricks Builder, Brizy, Contact Form 7, Convert Pro, Divi Builder, Elementor, Everest Forms, Fluent Forms, Formidable Forms, Forminator, Gravity Forms, Happyforms, JetFormBuilder, MetForm, Ninja Forms, weForms, WPForms, WS Form.
+- **Jobs:** WP Job Manager, WP Job Openings.
+- **Learning Management:** LearnDash, LearnPress, LifterLMS, Masteriyo LMS, MasterStudy LMS, Sensei LMS, Tutor LMS.
+- **Membership:** MemberPress, Paid Memberships Pro, ProfilePress, Simple Membership, SureMembers, Ultimate Member, WishList Member, WP eMember.
+- **Polls:** WP-Polls.
+- **Recipes:** WP Recipe Maker.
+- **Rewards:** GamiPress, myCRED, WPLoyalty.
+- **Security:** Akismet.
+- **Social Media:** Bit Social.
+- **Translation:** Polylang, WPML.
+- **WordPress:** WordPress Comments, WordPress Registration Form, WordPress Users.
 
 = Use Noptin standalone or connect external services =
 
 Noptin works as a complete self-hosted newsletter solution.
 
-If you want, you can also connect subscribers to external email services using optional addons. Supported services include ActiveCampaign, Activetrail, Agile CRM, Attio, AWeber, Birdsend, Brevo (Sendinblue), Campaign Monitor, Constant Contact, ConvertKit, Customerly, Drip, EmailOctopus, GetResponse, Gist, Google Sheets, HubSpot, iContact, Keap/Infusionsoft, Klaviyo, Mailchimp, MailerLite, Mailjet, Moosend, Ontraport, Ortto, Pipedrive, Quentn, Salesflare, Salesforce, SendFox, Sendgrid, Sendlane, SendPulse, Sendy, Slack, Smaily, Telegram, Twilio, VerticalResponse, Webhooks, Zoho Campaigns, Zoho CRM, and many more.
+You can also connect external services using optional addons:
 
+- **Email services:** ActiveCampaign, Activetrail, Agile CRM, Attio, AWeber, Birdsend, Brevo (Sendinblue), Campaign Monitor, Constant Contact, ConvertKit, Customerly, Drip, Emailit, EmailOctopus, GetResponse, Gist, HubSpot, iContact, Keap/Infusionsoft, Klaviyo, Mailchimp, MailerLite, MailerLite (Classic), Mailjet, Moosend, Ontraport, Ortto, Pipedrive, Quentn, Salesflare, Salesforce, SendFox, Sendgrid, Sendlane, SendPulse, Sendy, Smaily, VerticalResponse, Zoho Campaigns, Zoho CRM.
+- **Non-email services:** Google Sheets, Postal, Slack, Telegram, Twilio, Webhooks.
 
 == Installation ==
 
@@ -197,12 +215,24 @@ There are a lot of ways to contribute to this newsletter plugin:-
 14. Select recipients for an email.
 15. Viewing a list of all subscribers.
 
+== Upgrade Notice ==
+
+= 4.4.0 =
+Important security release addressing multiple vulnerabilities. Updating is strongly recommended.
+
 == Changelog ==
 
+= 4.4.0 =
+* Fix: Unable to delete lists with spaces in their name.
+* Security: Fixed a stored cross-site scripting (XSS) vulnerability affecting subscriber custom fields and campaign previews.
+* Security: Restricted post-list shortcode queries to prevent access to unintended post types, statuses, and sensitive metadata.
+* Security: Strengthened double opt-in and subscription-management validation to prevent unauthorized subscription confirmation or email changes.
+* Security: Fixed a subscriber enumeration issue in REST API responses.
+
 = 4.3.10 =
-Add: Atomic task claiming to prevent the same task from executing concurrently.
-Add: A new option that disables actual email delivery on staging sites.
-Fix: Prevent derived email-engagement updates from retriggering subscriber-update automations.
+* Add: Atomic task claiming to prevent the same task from executing concurrently.
+* Add: A new option that disables actual email delivery on staging sites.
+* Fix: Prevent derived email-engagement updates from retriggering subscriber-update automations.
 
 = 4.3.9 =
 * Add: Support merge tags in email attachment paths.

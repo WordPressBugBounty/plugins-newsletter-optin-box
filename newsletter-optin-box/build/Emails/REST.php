@@ -92,6 +92,37 @@ class REST extends \WP_REST_Posts_Controller {
 	}
 
 	/**
+	 * Checks if a given request has access to read a campaign.
+	 *
+	 * Published campaigns may be viewed through their browser links, but the
+	 * REST response also includes campaign settings and metadata.
+	 *
+	 * @param \WP_Post $post Campaign post.
+	 * @return bool Whether the current user can read the campaign.
+	 */
+	public function check_read_permission( $post ) {
+		if ( ! parent::check_read_permission( $post ) ) {
+			return false;
+		}
+
+		return current_user_can_manage_noptin_campaign_type( $this->get_stored_campaign_type( $post->ID ) );
+	}
+
+	/**
+	 * Checks if the current user can delete a campaign.
+	 *
+	 * @param \WP_Post $post Campaign post.
+	 * @return bool Whether the current user can delete the campaign.
+	 */
+	protected function check_delete_permission( $post ) {
+		if ( ! parent::check_delete_permission( $post ) ) {
+			return false;
+		}
+
+		return current_user_can_manage_noptin_campaign_type( $this->get_stored_campaign_type( $post->ID ) );
+	}
+
+	/**
 	 * Checks if a given request has access to update a post.
 	 *
 	 * @since 4.7.0
@@ -182,6 +213,17 @@ class REST extends \WP_REST_Posts_Controller {
 		}
 
 		return sanitize_key( $type );
+	}
+
+	/**
+	 * Gets the stored campaign type, including the legacy newsletter default.
+	 *
+	 * @param int $post_id Campaign post ID.
+	 * @return string Campaign type.
+	 */
+	private function get_stored_campaign_type( $post_id ) {
+		$type = get_post_meta( $post_id, 'campaign_type', true );
+		return empty( $type ) ? 'newsletter' : sanitize_key( $type );
 	}
 
 	/**

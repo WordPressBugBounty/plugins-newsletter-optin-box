@@ -81,8 +81,32 @@ class User extends Person {
 		}
 
 		// Meta.
-		if ( 'meta' === $field ) {
+		$is_meta = 'meta' === $field;
+		if ( $is_meta ) {
 			$field = isset( $args['key'] ) ? $args['key'] : null;
+
+			if ( ! is_string( $field ) || '' === $field ) {
+				return null;
+			}
+
+			// During list rendering, require registration unless an integration
+			// explicitly allows the key.
+			if (
+				! registered_meta_key_exists( 'user', $field ) &&
+				! apply_filters(
+					'noptin_should_show_user_meta_key',
+					! apply_filters( 'noptin_render_email_item_lists', false ),
+					$field
+				)
+			) {
+				return null;
+			}
+		}
+
+		// WP_User::get() can also read credential columns from wp_users.
+		// Do not let generic user fields or meta tags expose those values.
+		if ( in_array( strtolower( (string) $field ), array( 'pass', 'user_pass', 'activation_key', 'user_activation_key' ), true ) ) {
+			return null;
 		}
 
 		// Abort if no field.
@@ -91,7 +115,7 @@ class User extends Person {
 		}
 
 		// Related collections.
-		if ( strpos( $field, '.' ) ) {
+		if ( ! $is_meta && strpos( $field, '.' ) ) {
 			return $this->get_provided( $field, $args );
 		}
 
@@ -100,6 +124,12 @@ class User extends Person {
 
 		if ( ! is_null( $value ) ) {
 			return $value;
+		}
+
+		// A meta key must read user metadata, never a wp_users column or an
+		// alternative field resolved by WP_User::get().
+		if ( $is_meta ) {
+			return get_user_meta( $this->external->ID, $field, true );
 		}
 
 		// Try with user_ prefix.

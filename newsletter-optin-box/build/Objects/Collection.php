@@ -968,6 +968,11 @@ abstract class Collection {
 	 */
 	public function handle_list_shortcode( $atts, $template ) {
 
+		// List templates may contain private merge tags. Render them only while generating an email.
+		if ( ! apply_filters( 'noptin_render_email_item_lists', false ) ) {
+			return '';
+		}
+
 		if ( ! noptin_has_alk() ) {
 			return $template;
 		}
@@ -1013,7 +1018,25 @@ abstract class Collection {
 				}
 			}
 
+			// Ensure post type is maintained.
+			if ( 'post_type' === $this->object_type ) {
+				$query['post_status'] = 'publish';
+			}
+
 			$items = $this->get_all( $query );
+		}
+
+		if ( 'post_type' === $this->object_type && is_array( $items ) ) {
+			// Constrain IDs supplied by merge tags or modified by query filters.
+			$items = array_values(
+				array_filter(
+					$items,
+					function ( $item ) {
+						$post = get_post( $item );
+						return $post && $this->type === $post->post_type && 'publish' === $post->post_status && '' === $post->post_password;
+					}
+				)
+			);
 		}
 
 		// Debug the query later.
