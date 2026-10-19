@@ -32,10 +32,20 @@ class Digest extends \Hizzle\Noptin\Emails\Types\Recurring {
 	public function __construct( $collection ) {
 		parent::__construct();
 
-		$this->collection_label  = $collection->label;
-		$this->collection        = $collection->type;
-		$this->type              = 'latest_' . $collection->plural_type() . '_digest';
-		$this->notification_hook = 'noptin_send_' . $this->type;
+		$this->collection_label           = $collection->label;
+		$this->collection                 = $collection->type;
+		$this->type                       = 'latest_' . $collection->plural_type() . '_digest';
+		$this->notification_hook          = 'noptin_send_' . $this->type;
+		$this->mail_config['integration'] = $collection->integration;
+		$this->mail_config['digest']      = true;
+
+		if ( 'post_type' === $collection->object_type ) {
+			$this->mail_config['post_type'] = array(
+				'name'  => $collection->type,
+				'label' => $collection->label,
+				'image' => $collection->icon,
+			);
+		}
 
 		$this->add_hooks();
 	}
@@ -118,8 +128,8 @@ class Digest extends \Hizzle\Noptin\Emails\Types\Recurring {
 				'number'  => 10,
 				'order'   => 'desc',
 				'orderby' => 'date',
-            ),
-            $collection->query_defaults()
+			),
+			$collection->query_defaults()
 		);
 
 		foreach ( $collection->get_filters() as $key => $data ) {
@@ -163,6 +173,10 @@ class Digest extends \Hizzle\Noptin\Emails\Types\Recurring {
 		$types = parent::register_automation_type( $types );
 
 		$types[ $this->type ]['alt_category'] = $this->collection_label;
+		if ( ! empty( $this->mail_config['integration'] ) ) {
+			$types[ $this->type ]['subCategory'] = $this->collection_label;
+			$types[ $this->type ]['keywords']    = array( $this->category );
+		}
 		return $types;
 	}
 }

@@ -260,15 +260,16 @@ class Noptin_Form_Submit_Trigger extends \Hizzle\Noptin\Automation_Rules\Trigger
 				}
 			}
 
-			if ( "form_{$form_id}.email" === $key ) {
+			if ( is_scalar( $value ) && "form_{$form_id}.email" === $key ) {
 				$prepared['email'] = sanitize_email( $value );
 			}
 
-			if ( is_email( $value ) && empty( $prepared['email'] ) ) {
+			if ( is_scalar( $value ) && is_email( $value ) && empty( $prepared['email'] ) ) {
 				$prepared['email'] = sanitize_email( $value );
 			}
 
-			$prepared[ $key ] = $value;
+			// Preserve raw arrays for option-label rendering; flatten only for email detection.
+			$prepared[ $key ] = $posted[ $key ];
 		}
 
 		// Maybe set an email.

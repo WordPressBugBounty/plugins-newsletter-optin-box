@@ -180,6 +180,14 @@ abstract class Collection {
 
 			$args = apply_filters( 'noptin_collection_type_register_trigger_args', $args, $this, $key );
 
+			if ( 'post_type' === $this->object_type ) {
+				$args['mail_config']['post_type'] = array(
+					'name'  => $this->type,
+					'label' => $this->label,
+					'image' => $this->icon,
+				);
+			}
+
 			\Hizzle\Noptin\Automation_Rules\Triggers\Main::add(
 				new Trigger( $key, $args, $this )
 			);
@@ -367,10 +375,14 @@ abstract class Collection {
 		$block_name  = \Hizzle\Noptin\Emails\Admin\Editor::merge_tag_to_block_name( $this->field_to_merge_tag( $this->image_field ) );
 		$block_class = str_replace( '/', '-', $block_name );
 		$class_name  = 'wp-block-' . $block_class . ' noptin-image-block__wrapper ' . $block_class;
+		$attributes  = array(
+			'anchor'   => $block_class,
+			'settings' => (object) $atts,
+		);
 
 		ob_start();
 		?>
-			<!-- wp:<?php echo esc_html( $block_name ); ?> {"anchor":"<?php echo esc_html( $class_name ); ?>"} -->
+			<!-- wp:<?php echo esc_html( $block_name ); ?> <?php echo serialize_block_attributes( $attributes ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WordPress escapes block-comment JSON during serialization. ?> -->
 			<table border="0" cellpadding="0" cellspacing="0" role="presentation" class="<?php echo esc_html( $class_name ); ?>">
 				<tbody>
 					<tr>
@@ -408,24 +420,24 @@ abstract class Collection {
 		?>
 			<!-- wp:<?php echo esc_html( $block_name ); ?> {"style":{"noptin":{"border":{"radius":"5px"},"typography":{"textTransform":"none","textDecoration":"none","textAlign":"center"},"align":"left"}}} -->
 			<table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" class="wp-block-<?php echo esc_attr( str_replace( '/', '-', $block_name ) ); ?> noptin-button-block__wrapper">
-                <tbody>
-                    <tr>
-                        <td align="left">
-                            <div class="noptin-block__margin-wrapper">
-                                <table>
-                                    <tbody>
-                                        <tr>
-                                            <td role="presentation" valign="middle" class="noptin-button-link__wrapper" style="text-align:center;cursor:auto;border-radius:5px">
-                                                <a class="noptin-button-link" href="<?php echo esc_html( $this->field_to_merge_tag( $this->url_field ) ); ?>" style="text-transform:none;text-decoration:none;text-align:center;border-radius:5px;margin:0px;display:block;word-break:break-word"><?php esc_html_e( 'Read more', 'newsletter-optin-box' ); ?></a>
+				<tbody>
+					<tr>
+						<td align="left">
+							<div class="noptin-block__margin-wrapper">
+								<table>
+									<tbody>
+										<tr>
+											<td role="presentation" valign="middle" class="noptin-button-link__wrapper" style="text-align:center;cursor:auto;border-radius:5px">
+												<a class="noptin-button-link" href="<?php echo esc_html( $this->field_to_merge_tag( $this->url_field ) ); ?>" style="text-transform:none;text-decoration:none;text-align:center;border-radius:5px;margin:0px;display:block;word-break:break-word"><?php esc_html_e( 'Read more', 'newsletter-optin-box' ); ?></a>
 											</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 			<!-- /wp:<?php echo esc_html( $block_name ); ?> -->
 		<?php
 		return ob_get_clean();

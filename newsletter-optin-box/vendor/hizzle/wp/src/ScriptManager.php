@@ -50,6 +50,8 @@ class ScriptManager {
 	 * @var array
 	 */
 	public static function init() {
+		require_once __DIR__ . '/SettingsAPI.php';
+		add_action( 'rest_api_init', array( SettingsAPI::class, 'register_routes' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_scripts' ), 5 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'load_collection' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'auto_load_styles' ), 1000 );
@@ -146,23 +148,6 @@ class ScriptManager {
 	 */
 	public static function preload_settings() {
 		if ( wp_script_is( 'hizzlewp-settings', 'enqueued' ) ) {
-			wp_add_inline_script(
-				'wp-api-fetch',
-				sprintf(
-					'wp.apiFetch.use( wp.apiFetch.createPreloadingMiddleware( %s ) );',
-					wp_json_encode(
-						array_reduce(
-							array(
-								'/wp/v2/settings',
-								array( '/wp/v2/settings', 'OPTIONS' ),
-							),
-							'rest_preload_api_request',
-							array()
-						)
-					)
-				),
-				'after'
-			);
 
 			wp_add_inline_script(
 				'wp-api-fetch',
@@ -173,6 +158,44 @@ class ScriptManager {
 				'before'
 			);
 		}
+	}
+
+	/**
+	 * Register a WordPress option with the settings REST API.
+	 *
+	 * Call this on every request, including REST requests, rather than only when
+	 * enqueueing the settings page. Updates use update_option() and the option's
+	 * registered WordPress sanitization callbacks.
+	 *
+	 * @param string $option WordPress option name. Must match the option_name passed
+	 *                       to SettingsProvider and contain only letters, numbers,
+	 *                       underscores, or hyphens.
+	 * @param array  $args {
+	 *     Registration arguments.
+	 *
+	 *     @type callable $fields              Required. Called without arguments to
+	 *                                         return the current grouped settings
+	 *                                         field tree as an array, or WP_Error.
+	 *                                         Build fields from current saved values
+	 *                                         so labels and action URLs can refresh.
+	 *     @type callable $values              Optional. Called without arguments to
+	 *                                         return saved values prepared for the
+	 *                                         editor, or WP_Error. Defaults to
+	 *                                         get_option( $option, array() ). This
+	 *                                         callback does not handle saving.
+	 *     @type string   $capability          Capability required for all reads and
+	 *                                         updates. Default 'manage_options'.
+	 *                                         Ignored when permission_callback is set.
+	 *     @type callable $permission_callback Optional. Receives WP_REST_Request and
+	 *                                         returns bool or WP_Error to authorize
+	 *                                         values reads, fields reads, and updates.
+	 *                                         Replaces the capability check.
+	 * }
+	 * @return void
+	 * @throws \InvalidArgumentException When fields is missing or is not callable.
+	 */
+	public static function register_settings( $option, $args ) {
+		SettingsAPI::register( $option, $args );
 	}
 
 	/**

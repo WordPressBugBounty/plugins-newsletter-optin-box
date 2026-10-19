@@ -4,8 +4,8 @@ Tags: newsletter, subscribe, newsletter subscribers, notify, woocommerce
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Version: 4.4.0
-Stable tag: 4.4.0
+Version: 4.4.1
+Stable tag: 4.4.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 Donate link: https://noptin.com/pricing/?utm_source=wp-repo&utm_medium=donate&utm_campaign=readme
@@ -115,7 +115,7 @@ Noptin plays nicely with the tools you already use:
 - **Directories:** Directorist, GeoDirectory.
 - **eCommerce:** Charitable, Easy Digital Downloads, Hizzle Pay, WooCommerce.
 - **Events:** Events Manager, Modern Events Calendar, The Events Calendar.
-- **Forms:** Beaver Builder, Bit Form, Bricks Builder, Brizy, Contact Form 7, Convert Pro, Divi Builder, Elementor, Everest Forms, Fluent Forms, Formidable Forms, Forminator, Gravity Forms, Happyforms, JetFormBuilder, MetForm, Ninja Forms, weForms, WPForms, WS Form.
+- **Forms:** Beaver Builder, Bit Form, Bricks Builder, Brizy, Contact Form 7, Convert Pro, Divi Builder, Elementor, Everest Forms, Fluent Forms, Formidable Forms, Forminator, Gravity Forms, Happyforms, JetFormBuilder, MetForm, Ninja Forms, QuillForms, weForms, WPForms, WS Form.
 - **Jobs:** WP Job Manager, WP Job Openings.
 - **Learning Management:** LearnDash, LearnPress, LifterLMS, Masteriyo LMS, MasterStudy LMS, Sensei LMS, Tutor LMS.
 - **Membership:** MemberPress, Paid Memberships Pro, ProfilePress, Simple Membership, SureMembers, Ultimate Member, WishList Member, WP eMember.
@@ -134,7 +134,7 @@ Noptin works as a complete self-hosted newsletter solution.
 You can also connect external services using optional addons:
 
 - **Email services:** ActiveCampaign, Activetrail, Agile CRM, Attio, AWeber, Birdsend, Brevo (Sendinblue), Campaign Monitor, Constant Contact, ConvertKit, Customerly, Drip, Emailit, EmailOctopus, GetResponse, Gist, HubSpot, iContact, Keap/Infusionsoft, Klaviyo, Mailchimp, MailerLite, MailerLite (Classic), Mailjet, Moosend, Ontraport, Ortto, Pipedrive, Quentn, Salesflare, Salesforce, SendFox, Sendgrid, Sendlane, SendPulse, Sendy, Smaily, VerticalResponse, Zoho Campaigns, Zoho CRM.
-- **Non-email services:** Google Sheets, Postal, Slack, Telegram, Twilio, Webhooks.
+- **Non-email services:** Google Sheets, Postal, Slack, Telegram, Twilio, Webhooks, WhatsApp.
 
 == Installation ==
 
@@ -221,6 +221,9 @@ There are a lot of ways to contribute to this newsletter plugin:-
 Important security release addressing multiple vulnerabilities. Updating is strongly recommended.
 
 == Changelog ==
+
+= 4.4.1 =
+* Simplify the newsletter creation wizard.
 
 = 4.4.0 =
 * Fix: Unable to delete lists with spaces in their name.
