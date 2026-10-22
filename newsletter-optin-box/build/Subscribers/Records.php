@@ -785,6 +785,7 @@ class Records extends \Hizzle\Noptin\Objects\People {
 		);
 
 		$manual_recipients = $email->get_manual_recipients_ids();
+
 		if ( ! empty( $manual_recipients ) ) {
 			$args['include'] = $manual_recipients;
 		} elseif ( noptin_has_alk() ) {
@@ -831,6 +832,12 @@ class Records extends \Hizzle\Noptin\Objects\People {
 
 			// Allow other plugins to filter the query.
 			$args = apply_filters( 'noptin_mass_mailer_subscriber_query', $args, $email );
+		} else {
+			foreach ( array( 'language', 'language_not' ) as $key ) {
+				if ( isset( $options[ $key ] ) && '' !== $options[ $key ] && array() !== $options[ $key ] ) {
+					$args[ $key ] = $options[ $key ];
+				}
+			}
 		}
 
 		// Run the query...

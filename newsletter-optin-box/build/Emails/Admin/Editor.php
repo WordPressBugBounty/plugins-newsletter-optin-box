@@ -20,7 +20,8 @@ class Editor {
 	public static function load( $edited_campaign ) {
 
 		// Block editor context.
-		$post                 = self::get_post( $edited_campaign );
+		$post = self::get_post( $edited_campaign );
+
 		$block_editor_context = new \WP_Block_Editor_Context( array( 'post' => $post ) );
 
 		/*
