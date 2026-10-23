@@ -1,7 +1,0 @@
-{
-    "label": "WordPress Registration Form",
-    "slug": "wordpress-registration-form",
-    "requires": {
-        "noptin": "4.0.0"
-    }
-}

@@ -1,7 +1,0 @@
-{
-    "label": "WS Form",
-    "slug": "ws-form",
-    "requires": {
-        "constant": "WS_FORM_VERSION"
-    }
-}

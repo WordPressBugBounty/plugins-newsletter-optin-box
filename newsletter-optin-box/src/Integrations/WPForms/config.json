@@ -1,7 +1,0 @@
-{
-    "label": "WPForms",
-    "slug": "wpforms",
-    "requires": {
-        "function": "wpforms"
-    }
-}

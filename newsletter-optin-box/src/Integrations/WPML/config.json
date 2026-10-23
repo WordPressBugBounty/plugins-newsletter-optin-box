@@ -1,7 +1,0 @@
-{
-    "label": "WPML",
-    "slug": "wpml",
-    "requires": {
-        "constant": "ICL_SITEPRESS_VERSION"
-    }
-}

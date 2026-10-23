@@ -1,7 +1,0 @@
-{
-    "label": "Contact Form 7",
-    "slug": "contact-form-7",
-    "requires": {
-        "constant": "WPCF7_VERSION"
-    }
-}

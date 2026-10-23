@@ -1,7 +1,0 @@
-{
-    "label": "WordPress Comments",
-    "slug": "wordpress-comments",
-    "requires": {
-        "noptin": "4.0.0"
-    }
-}
